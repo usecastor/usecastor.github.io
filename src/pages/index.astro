@@ -1,14 +1,27 @@
 ---
+// Castor V3 — Flagship single-author homepage.
+// Four cinematic acts, each an isolated React 19 island:
+//   ACT 1  HeroCinema       (client:load — LCP above-the-fold)
+//   ACT 2  DualEngineBeam   (client:visible)
+//   ACT 3  SavingsInstrument(client:visible)
+//   ACT 4  DeployDeck       (client:visible)
+// plus the sleek dark-glass Header and minimal obsidian Footer.
+//
+// Total visible prose is ruthlessly terse (< 320 words) — every number is
+// sourced from the 100%-verified November 19, 2026 telemetry layer.
+
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
-import Hero from '../components/Hero.astro';
-import TokenSplitStory from '../components/TokenSplitStory.astro';
-import SpecLedger from '../components/SpecLedger.astro';
-import ArchitectureMap from '../components/ArchitectureMap.astro';
-import SecuritySandbox from '../components/SecuritySandbox.astro';
-import EconomicsCalc from '../components/EconomicsCalc.astro';
-import DeploymentTiers from '../components/DeploymentTiers.astro';
-import QuickstartFooter from '../components/QuickstartFooter.astro';
+import Footer from '../components/Footer.astro';
+import HeroCinema from '../components/v3/HeroCinema';
+import DualEngineBeam from '../components/v3/DualEngineBeam';
+import SavingsInstrument from '../components/v3/SavingsInstrument';
+import DeployDeck from '../components/v3/DeployDeck';
+import { getPrecompiledHeroSteps } from '../data/magic-move-steps';
+
+// Build-time precompiled magic-move tokens (inlined as plain JSON — zero
+// Shiki JS/WASM shipped; the browser only plays CSS token morphs).
+const steps = await getPrecompiledHeroSteps();
 ---
 
 <Layout
@@ -16,22 +29,11 @@ import QuickstartFooter from '../components/QuickstartFooter.astro';
   description="Run autonomous AI coding agents on your private GPU: 2.62B tokens over 76 days at 93.7% prefix-cache hit, 99.84% net savings versus cloud API counterfactual."
 >
   <Header />
-  <main id="main-content" class="min-h-screen bg-ground">
-    <!-- Above the fold: paints at opacity 1 immediately (instant LCP), no reveal. -->
-    <Hero />
-
-    <!--
-      Below-the-fold sections. `scroll-mt-16` keeps sticky-header anchor
-      links landing cleanly below the 56 px bar. The hairline rules are the
-      sections' own `border-y border-hairline` — crisp 1 px dividers with no
-      doubled borders between adjacent blocks.
-    -->
-    <TokenSplitStory data-reveal />
-    <SpecLedger data-reveal />
-    <ArchitectureMap data-reveal />
-    <SecuritySandbox data-reveal />
-    <EconomicsCalc data-reveal />
-    <DeploymentTiers data-reveal />
+  <main id="main-content">
+    <HeroCinema client:load steps={steps} />
+    <DualEngineBeam client:visible />
+    <SavingsInstrument client:visible />
+    <DeployDeck client:visible />
   </main>
-  <QuickstartFooter />
+  <Footer />
 </Layout>

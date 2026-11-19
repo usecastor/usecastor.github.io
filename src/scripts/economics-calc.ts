@@ -141,6 +141,22 @@ export interface EconomicsUpdateDetail {
 
 export const ECONOMICS_UPDATE_EVENT = 'castor:economics-update';
 
+/**
+ * Stash the latest economics detail on `window` BEFORE dispatching the
+ * CustomEvent, so a listener that mounts mid-flight (e.g. DeployDeck
+ * hydrating after SavingsInstrument's initial effect has already fired)
+ * can read `window.__castorEconomics` on mount and never see a stale
+ * `null` mailto body.
+ */
 export function dispatchEconomicsUpdate(detail: EconomicsUpdateDetail): void {
-  window.dispatchEvent(new CustomEvent<EconomicsUpdateDetail>(ECONOMICS_UPDATE_EVENT, { detail }));
+  window.__castorEconomics = detail;
+  window.dispatchEvent(
+    new CustomEvent<EconomicsUpdateDetail>(ECONOMICS_UPDATE_EVENT, { detail }),
+  );
+}
+
+declare global {
+  interface Window {
+    __castorEconomics?: EconomicsUpdateDetail;
+  }
 }

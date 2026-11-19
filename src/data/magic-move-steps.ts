@@ -110,10 +110,19 @@ test result: ok. 42 passed; 0 failed; 0 ignored; 0 filtered out; 0.41s
   let previous: KeyedTokensInfo | null = null;
 
   for (const frame of frames) {
-    let info = codeToKeyedTokens(highlighter, frame.code, {
-      lang: frame.lang,
-      theme: THEME,
-    });
+    // `lineNumbers: true` (4th arg) bakes a `shiki-magic-move-line-number`
+    // token into every line so the precompiled theater shows line numbers —
+    // the precompiled path renders exactly the tokens it is given (the
+    // React `options.lineNumbers` flag only drives the live highlighter).
+    let info = codeToKeyedTokens(
+      highlighter,
+      frame.code,
+      {
+        lang: frame.lang,
+        theme: THEME,
+      },
+      true,
+    );
     // Carry keys from the previous frame into this one so the client-side
     // magic-move diff sees stable identities across the morph.
     if (previous) {
