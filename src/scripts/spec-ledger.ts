@@ -1,9 +1,10 @@
 /**
  * Spec Ledger — 3-tab hardware switcher + staggered tool-distribution bars.
- * The odometer counters on Tab 1 are driven by the Layout's global
- * `[data-count-to]` bootstrap; this module owns tab activation and the
- * scaleX(0) → scaleX(1) bar animation on viewport entry (instant under
- * prefers-reduced-motion). All browser work lives in boot() at the bottom.
+ * The ledger's headline values carry `data-count-to` attributes (a semantic
+ * odometer contract; the static label is the no-JS first paint); this module
+ * owns tab activation and the scaleX(0) → scaleX(1) bar animation on
+ * viewport entry (instant under prefers-reduced-motion). All browser work
+ * lives in boot() at the bottom.
  */
 
 type TabId = 'ledger' | 'live' | 'tiers';

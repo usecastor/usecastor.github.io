@@ -8,3 +8,9 @@ onlyBuiltDependencies:
 allowBuilds:
   esbuild: true
   sharp: true
+
+minimumReleaseAgeExclude:
+  - lucide-react@1.76.0
+
+overrides:
+  '@vitejs/plugin-react': '^4.7.0'

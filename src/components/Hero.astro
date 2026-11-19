@@ -14,8 +14,10 @@ const CLIENTS: Array<{ id: string; label: string; cmd: string }> = [
 
 /**
  * Live ledger strip — 3-cell 1px-gap `.spec-grid` on `--bg-surface`,
- * driven by the layout's [data-count-to] rolling odometers, sourced from
- * the verified 76-day `castor stats` window.
+ * sourced from the verified 76-day `castor stats` window. `data-count-to`
+ * / `data-decimals` / `data-prefix` / `data-suffix` attributes are kept as
+ * a semantic contract for a future NumberFlow odometer; the server-rendered
+ * final value is the source of truth in the static build.
  */
 const ledgerCells: Array<{
   countTo: number;
@@ -79,7 +81,7 @@ const ledgerCells: Array<{
         RUST MCP MICROKERNEL · AGPL-3.0 · 76-DAY LEDGER
       </p>
 
-      <!-- Masked upward reveal: the layout script animates [data-hero-reveal] -->
+      <!-- Masked line container for the hero headline (static paint) -->
       <h1
         class="mt-4 font-display text-[clamp(2.55rem,4.6vw,4.35rem)] font-bold leading-[0.96] tracking-[-0.04em] text-ink"
       >
@@ -185,7 +187,7 @@ const ledgerCells: Array<{
         </a>
       </div>
 
-      <!-- Live ledger strip: 3-cell 1px-gap spec grid, odometer-rolled -->
+      <!-- Live ledger strip: 3-cell 1px-gap spec grid, server-rendered values -->
       <div class="spec-grid mt-8 grid-cols-3">
         {ledgerCells.map((cell) => (
           <div class="min-w-0 p-3 sm:p-4">

@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 import sitemap from '@astrojs/sitemap';
+import react from '@astrojs/react';
 
 // Dual-target deployment:
 //   Vercel         → base "/"            (default; ASTRO_BASE unset)
@@ -15,7 +16,7 @@ export default defineConfig({
   base: process.env.ASTRO_BASE || '/',
   site: process.env.ASTRO_SITE || 'https://usecastor.github.io',
   output: 'static',
-  integrations: [sitemap()],
+  integrations: [react(), sitemap()],
   vite: {
     plugins: [tailwindcss()],
   },

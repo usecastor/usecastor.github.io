@@ -30,11 +30,12 @@ const TABS = [
 ] as const;
 
 /**
- * Ledger 76-day 8-cell grid rows. Every headline value carries a rolling
- * odometer (`data-count-to`); the static label keeps the exact string for
- * no-JS / reduced-motion first paint, and the counter rewrites it once.
- * valueStatic doubles as the initial text — clamp sizing below keeps
- * `2,619,320,414` from clipping the right edge on 390 px viewports.
+ * Ledger 76-day 8-cell grid rows. Every headline value carries a
+ * `data-count-to` attribute (a semantic odometer contract for a future
+ * NumberFlow integration); the static label is the exact source-of-truth
+ * string for first paint. valueStatic doubles as the initial text — clamp
+ * sizing below keeps `2,619,320,414` from clipping the right edge on
+ * 390 px viewports.
  */
 const ledgerRows: Array<{
   label: string;

@@ -20,6 +20,7 @@
  */
 @import '../styles/tokens.css';
 @import 'tailwindcss';
+@import 'shiki-magic-move/style.css';
 
 @theme inline {
   --font-display: 'Archivo Variable', system-ui, sans-serif;
@@ -68,7 +69,15 @@
 html {
   background-color: var(--bg-ground);
   color: var(--ink-primary);
-  scroll-behavior: smooth;
+}
+
+/* Crisp native smooth scrolling — gated strictly on user motion preference.
+   No JS scroll hijacking: the browser owns scroll physics (momentum,
+   inertia, touch) and we only ask it to interpolate anchor jumps. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 html,
@@ -249,8 +258,10 @@ body {
   }
 
   /* ── Scroll progress: 2px International Orange reading bar ─────────
-     Fixed along the bottom edge of the sticky header. Driven by GSAP
-     (scaleX, GPU-only); the transform below is the pre-JS fallback. */
+      Driven by pure CSS scroll-driven animation (animation-timeline:
+      scroll) — zero JS, GPU-only transform, works in Chromium 115+.
+      Browsers without support simply show a static (zero-width) bar,
+      which is invisible and harmless. */
   .scroll-progress {
     position: absolute;
     left: 0;
@@ -262,6 +273,15 @@ body {
     transform-origin: left center;
     pointer-events: none;
     will-change: transform;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .scroll-progress {
+        animation: progress-x linear both;
+        animation-timeline: scroll(root);
+      }
+    }
   }
 
   /* ── Inline code tokens (architecture-map inspector prose) ─────────
@@ -336,4 +356,82 @@ body {
     transition: none;
     transform: none;
   }
+}
+
+/* ── Flagship theater rim: luminous Cobalt→Amber conic light sweep ───
+   GPU-only: animates `transform: rotate()` on a 200%-sized ::before ring
+   that is masked to a 2px border. `border-beam` rotates the gradient one
+   full revolution; nothing here touches layout, scroll, or paint-heavy
+   properties, so it stays on the compositor thread. */
+@keyframes border-beam {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Seamless infinite marquee: 0 → -50% GPU translateX ─────────────
+   The track holds two identical halves; translating exactly -50% loops
+   without a visible seam. Paused on hover/focus-within, and frozen under
+   `prefers-reduced-motion: reduce` (iteration-count forced to 1 by the
+   universal rule above, leaving the first frame in place). */
+@keyframes marquee-x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Scroll progress bar fill (paired with animation-timeline: scroll()). */
+@keyframes progress-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform;
+  animation: marquee-x 32s linear infinite;
+}
+
+.marquee-track:hover,
+.marquee-track:focus-within {
+  animation-play-state: paused;
+}
+
+/* ── Shiki Magic Move: flagship code theater typography ─────────────
+   The precompiled magic-move code renders inside
+   `.shiki-magic-move-container` (from shiki-magic-move/style.css).
+   We pin it to the IBM Plex Mono stack with a crisp 1.6 line height,
+   tabular numerals for stable column alignment during token morphs,
+   and clip horizontal overflow so long lines can never push the page
+   sideways on a phone. */
+.shiki-magic-move-container {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  overflow-x: clip;
+}
+
+.shiki-magic-move-container pre,
+.shiki-magic-move-container code {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
 }
