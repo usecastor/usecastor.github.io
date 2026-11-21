@@ -24,23 +24,23 @@ const breadcrumb = {
 const faqItems: Array<{ q: string; a: string }> = [
   {
     q: 'Can source code or build artifacts leave the enclave at all?',
-    a: 'No. The air-gapped build compiles the `web` and `paper` tools out entirely, so no code path opens a socket. The MCP surface is stdio-only and the engine adapter binds to 127.0.0.1.',
+    a: 'No. The air-gapped profile (`cargo build --release --no-default-features --features mcp,ast`) excludes the `paper` research feature at compile time and retains the stdio MCP surface; the engine, status, and SSE-proxy ports (18020–18022) bind to 127.0.0.1 only, and external web tool config is disabled. With a host-OS default-deny outbound firewall or air-gapped enclave networking in front of that build, nothing the binary does can reach an external host.',
   },
   {
     q: 'What kernel-level confinement does the sandbox use?',
-    a: 'On Linux, every shell child is dropped into a Landlock ruleset at exec that restricts its filesystem access to the workspace root. The 5-layer path pipeline (root anchor → symlink containment → out-of-tree refusal → traversal normalization → binary sniff) sits above the kernel gate.',
+    a: 'On Linux (kernel 5.13+), every shell child process is dropped into a Landlock ruleset at exec that restricts its filesystem access to the workspace root. On every platform — Linux, Windows, and macOS — the 5-layer path pipeline (root anchor → symlink containment → out-of-tree refusal → traversal normalization → binary sniff) and the lexical shell scanner run beneath it.',
   },
   {
     q: 'How do I prove the egress boundary to a CISO or auditor?',
-    a: 'Run the air-gapped build flag, capture `nmap` / `ss -ltnp` output showing only loopback listeners on ports 18020–18022, and use the per-slice JSONL audit ledger that records every tool call, its verdict, and its trip layer. The 137-vector test table (123 blocked / 14 allowed) is reproducible from the open-source test suite.',
+    a: 'Build with the `--no-default-features --features mcp,ast` profile, capture `nmap` / `ss -ltnp` output showing only loopback listeners on 127.0.0.1:18020–18022, and present the per-slice JSONL audit ledger that records every tool call and its verdict. The 137-vector test table at `src/tools/sandbox/tests.rs:527` (123 blocked / 14 allowed) is reproducible from the open-source test suite.',
   },
   {
     q: 'Is the AST syntax gate a hard requirement or a toggle?',
-    a: 'Hard requirement. Every file commit is parsed in memory against 27 bundled tree-sitter grammars before it touches disk; malformed code is rejected and the write rolls back atomically. The gate is compile-time on (`ast` feature), so it cannot be disabled at runtime.',
+    a: 'It is a compile-time Cargo feature: `ast` is included in both the default build and the air-gapped `mcp,ast` profile, so every production binary carries the gate, and once compiled in it cannot be disabled at runtime. Every file commit is parsed in memory against the 27 bundled tree-sitter grammars before it touches disk; malformed code is rejected and the write rolls back atomically.',
   },
   {
     q: 'How is deployment priced?',
-    a: 'The Fixed-Scope Air-Gap Pilot is a fixed-scope compliance engagement for 10–50 seats over 1–3 months with a commercial dual-license (AGPL-3.0 opt-out). The 48-Hour GPU & vLLM Setup Sprint is a flat $1,500 one-time fee. Both carry a direct `mailto:` CTA — no forms, no sales gate.',
+    a: 'Two engagements. The Fixed-Scope Air-Gap Pilot is a quote-based engagement for 10–50 seats over 1–3 months: commercial dual-license (AGPL-3.0 opt-out), the air-gapped binary, the per-slice JSONL audit ledger, and a dedicated deployment SLA. The 48-Hour GPU & vLLM Setup Sprint is a flat $1,500 one-time fee that stands up your dedicated local inference hardware. Both are scoped through a direct email.',
   },
 ];
 
@@ -77,9 +77,9 @@ const techArticle = {
   publisher: { '@type': 'Organization', name: 'Castor Technologies' },
   mainEntityOfPage: `${root}enterprise/air-gapped-coding-agent/`,
   keywords:
-    'air-gapped, coding agent, CMMC Level 2, ITAR, SCIF, NIST 800-171, Landlock, sandbox, zero-trust, DIB, defense, compliance, local LLM, MCP',
+    'air-gapped, coding agent, CMMC Level 2, ITAR, SCIF, NIST 800-171, Landlock, sandbox, zero-trust, DIB, defense, local LLM, MCP',
   abstract:
-    'Wing 2 of Castor: a 100% local-only, air-gapped on-prem coding agent for regulated enclaves. Zero cloud egress — outbound tools compiled out, loopback-only ports — with a 5-layer path sandbox verified across 137 attack vectors (123 blocked / 14 allowed), Linux Landlock kernel confinement, a per-task audit ledger for NIST 800-171 / CMMC Level 2 / ITAR / SCIF, and a 27-grammar Tree-Sitter AST gate.',
+    'Wing 2 of Castor: a 100% local-only, air-gapped on-prem deployment with per-task JSONL audit logs designed to support NIST 800-171, CMMC Level 2, and ITAR enclaves. Zero cloud egress — outbound tools excluded at compile time, loopback-only ports — with a 5-layer path sandbox verified across 137 attack vectors (123 blocked / 14 allowed), Linux Landlock kernel confinement (5.13+), and a 27-grammar Tree-Sitter AST gate.',
 };
 
 const jsonLd = [breadcrumb, techArticle, faqPage];
@@ -96,9 +96,9 @@ const LAYERS: Array<{ level: string; fn: string; role: string }> = [
 /* Companion runtime gates */
 const GATES: Array<{ name: string; coord: string; desc: string }> = [
   {
-    name: 'Linux Landlock Kernel Confinement',
+    name: 'Linux Landlock Kernel Confinement (5.13+)',
     coord: 'src/tools/shell/process.rs',
-    desc: 'Every shell child is confined to the workspace root by a Landlock ruleset at exec; unsupported filesystems fall back to the lexical gates.',
+    desc: 'On Linux, every shell child is confined to the workspace root by a Landlock ruleset at exec; unsupported filesystems fall back to the lexical gates, which run on every platform.',
   },
   {
     name: 'Lexical Shell Scanner + Dead-Man Fuse',
@@ -122,7 +122,7 @@ const tiers = [
       'Dedicated local inference hardware stood up in a day — no weeks of vLLM / CUDA / quantization tuning.',
     bullets: [
       'vLLM 0.33 / llama.cpp + MTP/DFlash2 tuning for your GPUs (RTX 3090/4090/5090 or L40S/H100)',
-      'Air-gapped build flag enabled, egress tools compiled out',
+      'Air-gapped profile built (`--no-default-features --features mcp,ast`), external web tool config disabled',
       'Workspace sandbox & shell-policy hardening',
       'Throughput benchmark handoff + loopback egress audit',
     ],
@@ -137,8 +137,8 @@ const tiers = [
       'A fixed-scope compliance pilot for DIB, defense, finance, and healthcare enclaves where source code cannot touch external APIs.',
     bullets: [
       'Commercial dual-license (AGPL-3.0 opt-out)',
-      'Air-gapped binary with outbound web / paper tools compiled out',
-      'NIST 800-171 / CMMC Level 2 / ITAR / SCIF per-slice JSONL audit ledger',
+      'Air-gapped binary (`--no-default-features --features mcp,ast`): `paper` research feature excluded at compile time',
+      'NIST 800-171 / CMMC Level 2 / ITAR per-slice JSONL audit ledger',
       'Dedicated deployment SLA & custom model qualification',
     ],
     ctaLabel: 'Scope an Air-Gap Pilot →',
@@ -157,7 +157,7 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
 
 <Layout
   title="Air-Gapped Local Coding Agent for CMMC Level 2, ITAR & SCIF Enclaves | Castor"
-  description="Wing 2 of Castor — 100% local-only, air-gapped on-prem coding infrastructure. Zero cloud egress: outbound tools compiled out, loopback-only ports, a 5-layer path sandbox verified across 137 attack vectors (123 blocked / 14 allowed), Linux Landlock kernel confinement, and a per-task audit ledger for NIST 800-171 / CMMC Level 2 / ITAR / SCIF. Turnkey setup, agent plumbing & compliance rollout."
+  description="Wing 2 of Castor — 100% local-only, air-gapped on-prem deployment and per-task JSONL audit logs designed to support NIST 800-171, CMMC Level 2, and ITAR enclaves. Zero cloud egress: outbound tools excluded at compile time, loopback-only ports, a 5-layer path sandbox verified across 137 attack vectors (123 blocked / 14 allowed), and Linux Landlock kernel confinement (5.13+). Turnkey setup and agent plumbing."
   canonicalPath="/enterprise/air-gapped-coding-agent/"
   jsonLd={jsonLd}
 >
@@ -177,12 +177,13 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
         </h1>
         <p class="mt-4 max-w-2xl font-sans text-[15px] leading-relaxed text-ink-secondary sm:text-base">
           Castor Wing 2 runs coding agents <b>entirely on-prem</b>: zero cloud
-          API calls, <b>zero code egress</b>. Outbound web / paper tools are
-          <b>compiled out</b>, engine ports bind to loopback only, and every
-          tool call lands in a per-task audit ledger — so source in a
-          CMMC Level 2, ITAR, or SCIF enclave never has a code path to leave.
-          The boundary is not a policy memo; it is a 5-layer stack verified
-          across <b>137 attack vectors</b>.
+          API calls, <b>zero code egress</b>. Outbound tools are
+          <b>excluded at compile time</b>, engine ports bind to loopback only,
+          and every tool call lands in a per-task JSONL audit log — so source
+          in a CMMC Level 2, ITAR, or SCIF enclave never leaves the machine.
+          The boundary is a 5-layer stack verified across <b>137 attack
+          vectors</b>, with host-OS default-deny networking as the final
+          guarantee.
         </p>
 
         <!-- Egress boundary hero cells -->
@@ -361,9 +362,12 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
             <div class="border-t border-[var(--bg-instrument-border)] p-5">
               <p class="font-mono text-[11px] leading-relaxed text-ink-instrument-muted">
                 <span class="text-ok-oled">--no-default-features</span> strips the default
-                toolset. <span class="text-ok-oled">--features mcp,ast</span> keeps only the
-                stdio MCP surface and the AST gate — network tools are removed at
-                link time, leaving zero external socket paths in the binary.
+                toolset. <span class="text-ok-oled">--features mcp,ast</span> compiles in only
+                the stdio MCP surface and the AST gate — the <code class="am-code">paper</code>
+                research feature is excluded at compile time, and external web tool
+                config stays disabled. Pair this binary with a host-OS
+                default-deny outbound firewall or air-gapped enclave networking
+                for strict zero-egress enforcement.
               </p>
             </div>
           </div>
@@ -384,14 +388,15 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
                 interface.
               </li>
               <li class="border-l-2 border-l-block pl-3">
-                <b>Zero external sockets.</b> The <code class="am-code">web</code> and
-                <code class="am-code">paper</code> features are compiled out, so the binary
-                contains no code path that opens an outbound connection.
+                <b>No outbound tool code.</b> The <code class="am-code">paper</code>
+                research feature is excluded at compile time by this profile, and
+                external web tool config is disabled — the binary carries no
+                outbound network tooling.
               </li>
               <li class="border-l-2 border-l-local pl-3">
-                <b>Verifiable.</b> <code class="am-code">ss -ltnp</code> / <code class="am-code">nmap</code>
-                on the host show only loopback listeners — the capture ships
-                with the audit ledger.
+                <b>Strict enforcement.</b> Pair the build with a host-OS
+                default-deny outbound firewall or air-gapped enclave networking:
+                `ss -ltnp` / `nmap` on the host then show only loopback listeners.
               </li>
             </ul>
           </div>
@@ -404,7 +409,7 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
           <div class="folio-bar">
-            <span class="folio-coord">turnkey setup, plumbing &amp; compliance rollout</span>
+            <span class="folio-coord">turnkey setup &amp; agent plumbing</span>
             <span class="folio-index">04 / 05</span>
           </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">

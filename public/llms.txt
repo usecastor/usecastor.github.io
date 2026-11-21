@@ -1,31 +1,34 @@
 # Castor
 
-> Sovereign, zero-cloud-egress autonomous coding infrastructure. Castor runs AI coding agents in two wings: **Wing 1 (Cloud + Local Hybrid)** pairs your cloud lead architect with a local peer model (Qwen3.8-27B / Ternary-Bonsai) on your own GPU so file exploration, AST edits, and test loops run at $0.00 per token; **Wing 2 (100% Local-Only & Air-Gapped)** runs agents entirely on-prem with zero cloud API calls and zero code egress — inside a 5-layer sandbox with a per-task audit ledger.
+> Zero-cloud-egress autonomous coding infrastructure. Castor runs AI coding agents in two wings: **Wing 1 (Cloud + Local Hybrid)** pairs your cloud lead architect with a local peer model (Qwen3.8-27B / Ternary-Bonsai) on your own GPU so file exploration, AST edits, and test loops run at $0.00 per token; **Wing 2 (100% Local-Only & Air-Gapped)** runs agents entirely on-prem with zero cloud API calls and zero code egress — inside a 5-layer sandbox with a per-task audit ledger.
 
 ## What It Does
 
-- Registers as a stdio-only MCP server (exactly 3 tools: `coworker`, `task`, `server`) with Claude Code, Antigravity, Cursor, or any MCP host.
-- Offloads the high-volume tool-execution loop (read / edit / search / test) to a local engine — vLLM, llama.cpp, SGLang, Ollama, or LM Studio — via a loopback-only OpenAI-compatible SSE proxy (127.0.0.1:18020–18022).
-- Contains every file path and shell command in a 5-layer zero-trust pipeline (root anchor → symlink containment → out-of-tree refusal → traversal normalization → binary sniff) plus Linux Landlock kernel confinement, a lexical shell scanner with dead-man fuse, and a 27-grammar Tree-Sitter AST syntax gate.
-- Records a live per-turn telemetry ledger (`castor stats`): tokens, KV cache hit, throughput, and cloud-counterfactual savings; per-task JSONL audit ledger for NIST 800-171 / CMMC Level 2 / ITAR / SCIF.
+- Registers as a stdio-only MCP server (exactly 3 tools: `castor_coworker`, `castor_task`, `castor_server`) — auto-installed for Claude Code and Antigravity via `npx -y mcp-castor install --client claude|antigravity|all`; Cursor, Codex, and any other stdio MCP client connect via standard MCP config.
+- Offloads the high-volume tool-execution loop (read / edit / search / test) to a local engine — vLLM, llama.cpp, SGLang, Ollama, or LM Studio — via a loopback-only OpenAI-compatible SSE proxy (127.0.0.1:18022; engine 18020, status 18021).
+- Contains every file path and shell command in a 5-layer zero-trust pipeline (root anchor → symlink containment → out-of-tree refusal → traversal normalization → binary sniff) plus a lexical shell scanner with dead-man fuse on all platforms, and Linux (5.13+) Landlock kernel confinement where available, and a 27-grammar Tree-Sitter AST syntax gate.
+- Records a per-turn telemetry ledger (`castor stats`): tokens, KV cache hit, throughput, and cloud-counterfactual savings; per-task JSONL audit ledger for NIST 800-171 / CMMC Level 2 / ITAR / SCIF.
 
-## Key Numbers (verified 2026-11-21)
+## Key Numbers (`castor stats`, 78-day ledger Sep 4 – Nov 21, 2026)
 
 - 2.77B total tokens over 78 days (Sep 4 – Nov 21, 2026)
-- 93.8% session KV-cache hit (2.53B of 2.71B prompt tokens reused from VRAM across multi-turn sessions)
+- 93.8% session KV-cache hit (2.53B of 2.71B prompt tokens reused from VRAM across multi-turn sessions, max_model_len 150,000)
 - 49,414 autonomous turns · 1,187 sessions · 67,506 sandboxed tool calls (97.0% success)
-- 70.4 tok/s sustained single-stream decode (75.5 tok/s peak n=1)
+- 70.4 tok/s sustained single-stream decode (n=1, 78-day mean)
 - 260 tok/s aggregate decode across n=4 concurrent streams sharing a warm KV prefix
-- 6,892 tok/s peak cached prefill (3,247 tok/s effective prefill)
+- 3,247 tok/s effective prefill (warm + cold)
+- 14.15 s average TTFT (single-day vLLM /metrics snapshot, 2026-11-21)
 - 137 sandbox test vectors: 123 blocked / 14 allowed
-- $6,044.48 cloud counterfactual vs $10.12 local electricity (56.2 kWh @ $0.18/kWh) = $6,034.36 net saved (99.83% margin)
+- $6,044.48 cloud counterfactual (Sonnet-tier $2/$10 per 1M tokens) vs $10.12 local electricity (56.2 kWh @ $0.18/kWh) = $6,034.36 reduction (99.83% of cloud cost)
 
-## Unified Frontier Model Names (cloud lead architect)
+## Cloud Lead Architect Models
 
-- Claude Opus 5.5 (Anthropic) · #1 coding agent
-- Claude Sonnet 5.5 (Anthropic)
-- GPT-6.2 Astra (OpenAI)
-- Gemini 4 Argon (Google)
+- Claude Opus 5.5 (Anthropic): $4 in / $20 out per 1M
+- Claude Sonnet 5.5 (Anthropic): $2 in / $10 out per 1M
+- Claude Haiku 5.5 (Anthropic): $0.10 / $0.50 per 1M (≤100K context); $0.50 / $2.50 above 100K
+- GPT-6.2 Astra (OpenAI): $8 in / $40 out per 1M
+- GPT-6.2 Sol (OpenAI): $2 in / $10 out per 1M
+- Gemini 4 Argon (Google): $2 / $10 per 1M (Nov 2026 intro rate); $4 / $20 standard from Dec 1, 2026
 
 ## The Two Wings
 
@@ -37,7 +40,7 @@
 - **Open-Source Engine** — Castor Core, AGPL-3.0, free; stdio-only MCP over a zero-egress loopback boundary.
 - **$1,500 48-Hour GPU & vLLM Setup Sprint** — turnkey dedicated-hardware stand-up: vLLM / KV-cache / MTP-DFlash2 tuning, sandbox hardening, benchmark + egress-audit handoff.
 - **Custom Agent Workflow Plumbing** — agent orchestration, sandbox & shell-policy hardening, and team IDE rollout wired into the tool loop your agents already run.
-- **Air-Gapped On-Prem Pilot** — fixed-scope 10–50 seat compliance pilot (NIST 800-171 / CMMC Level 2 / ITAR / SCIF) with commercial dual-license and a per-task audit ledger, over a fixed 1–3 month scope.
+- **Air-Gapped On-Prem Pilot** — fixed-scope 10–50 seat pilot (NIST 800-171 / CMMC Level 2 / ITAR) with commercial dual-license and a per-task audit ledger, over a fixed 1–3 month scope.
 
 ## Architecture
 
@@ -45,6 +48,12 @@
 - DGI logit gate: model-classified `delta_z = logP(OVERLOADED) − logP(ADMIT)` dispatch classifier
 - Token-budgeted lease semaphore: atomic `O_EXCL` file lease, 90% committed-token soft ceiling, KV-fill priority ranking
 - 27 bundled Tree-Sitter grammars; in-memory parse gate before any write hits disk
+
+## Air-Gapped Build
+
+- `cargo build --release --no-default-features --features mcp,ast`: strips the `paper` research feature, retains the core stdio MCP surface + AST gate. Pair with a host-OS default-deny outbound firewall / air-gapped enclave networking for strict zero-egress enforcement.
+- Ports: engine :18020, status :18021, SSE proxy :18022 — all bound to loopback (127.0.0.1).
+- Sandbox: 5-layer path pipeline + lexical shell scanner on all platforms; Linux (5.13+) Landlock kernel confinement falls back to the lexical gates on unsupported filesystems.
 
 ## Licensing
 

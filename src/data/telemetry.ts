@@ -1,14 +1,13 @@
 /**
- * Castor — Ground-Truth Telemetry & Architecture Data Layer
- * All values are 100% verified as of November 21, 2026.
- * Source of record: `castor stats` (78-day ledger Sep 4 – Nov 21, 2026),
+ * Castor — Telemetry & Architecture Data Layer
+ * Source: `castor stats` 78-day snapshot (Sep 4 → Nov 21, 2026),
  * `nvidia-smi` + vLLM 0.33.0 runtime snapshot, `docs/engine-profiles.md`,
  * `scripts/bonsai/README.md`, Qwen3.8-27B model card (Aug 14, 2026),
  * and the Castor `src/` codebase.
  *
  * NOTE on the `LEDGER_76DAY` export name: kept verbatim for API stability
- * (every v3 island and subpage imports it); the underlying window is now
- * the fresh 78-day snapshot (2026-09-04 → 2026-11-21).
+ * (every v3 island and subpage imports it); the underlying window is the
+ * 78-day snapshot (2026-09-04 → 2026-11-21).
  */
 
 /* ── Types ─────────────────────────────────────────────────────────── */
@@ -41,13 +40,9 @@ export interface Ledger76Day {
   gpuComputeDisplay: string;
   sessionWallClock: string;
   sustainedDecodeTps: number;
-  peakMtpDecodeTps: number;
-  /** Proven aggregate decode across n=4 concurrent streams sharing a warm KV prefix. */
+  /** Aggregate decode across n=4 concurrent streams sharing a warm KV prefix. */
   concurrentN4DecodeTps: number;
-  /** Legacy type-only field: retained at the n=4 aggregate value for API stability. */
-  peakSpecBurstTps: number;
   effectivePrefillTps: number;
-  peakCachedPrefillTps: number;
   /** Human-readable source note for the `concurrentN4DecodeTps` figure. */
   benchmarkNote: string;
   cloudCounterfactualUsd: number;
@@ -95,7 +90,6 @@ export interface CloudModel {
   priceInPer1m: number;
   priceOutPer1m: number;
   priceNote?: string;
-  aaScore?: number;
   note?: string;
 }
 
@@ -134,7 +128,7 @@ export interface PositioningFront {
   description: string;
 }
 
-/* ── Data: Live 78-day ledger (Sep 4 – Nov 21, 2026, `castor stats`) ─ */
+/* ── Data: 78-day ledger (Sep 4 – Nov 21, 2026, `castor stats`) ─────── */
 
 export const LEDGER_76DAY: Ledger76Day = {
   windowStart: '2026-09-04',
@@ -164,13 +158,10 @@ export const LEDGER_76DAY: Ledger76Day = {
   gpuComputeDisplay: '224h 56m',
   sessionWallClock: '160h 30m',
   sustainedDecodeTps: 70.4,
-  peakMtpDecodeTps: 75.5,
   concurrentN4DecodeTps: 260,
-  peakSpecBurstTps: 260,
   effectivePrefillTps: 3_247,
-  peakCachedPrefillTps: 6_892,
   benchmarkNote:
-    '260 tok/s aggregate decode across n=4 concurrent streams sharing a warm KV prefix. Single-stream decode: 70.4 tok/s sustained, 75.5 tok/s peak.',
+    '260 tok/s aggregate decode across n=4 concurrent streams sharing a warm KV prefix. 70.4 tok/s sustained single-stream decode.',
   cloudCounterfactualUsd: 6_044.48,
   electricityUsd: 10.12,
   electricityKwh: 56.2,
@@ -180,7 +171,7 @@ export const LEDGER_76DAY: Ledger76Day = {
   netSavingsPct: 99.83,
 };
 
-/* ── Data: Live hardware & vLLM 0.33.0 snapshot (Nov 21, 2026) ─────── */
+/* ── Data: Hardware & vLLM 0.33.0 snapshot (Nov 21, 2026) ──────────── */
 
 export const HARDWARE_SNAPSHOT: HardwareSnapshot = {
   asOf: '2026-11-21',
@@ -204,39 +195,31 @@ export const HARDWARE_SNAPSHOT: HardwareSnapshot = {
   },
 };
 
-/* ── Data: Verified VRAM hardware tiers ───────────────────────────── */
+/* ── Data: VRAM hardware tiers ─────────────────────────────────────── */
 
 export const VRAM_TIERS: VramTier[] = [
   {
-    vram: '8 GB VRAM',
-    engine: 'llama.cpp',
-    context: '8K ctx',
-    decode: '~22–26 tok/s',
+    vram: '8–12 GB GPUs',
+    engine: 'llama.cpp / Ollama',
+    context: '7B–14B coding models (W4A16 / Q4_K_M)',
+    decode: '~22–53 tok/s depending on model & quant',
   },
   {
-    vram: '12 GB VRAM',
-    engine: 'llama.cpp + DFlash2',
-    context: '64K ctx',
-    decode: '~38.6 tok/s',
+    vram: '16 GB GPUs',
+    engine: 'llama.cpp / Ollama',
+    context: '14B–22B local models or heavily quantized 27B (Ternary-Bonsai-2-27B-PQ2_0)',
+    decode: '~38–53 tok/s',
   },
   {
-    vram: '16 GB VRAM',
-    engine: 'llama.cpp + DFlash2',
-    context: '128K ctx',
-    decode: '~53.0 tok/s',
-  },
-  {
-    vram: '24 GB VRAM (RTX 3090)',
-    engine: 'vLLM 0.33.0 + Qwen3.8-27B-W4A16 + MTP',
+    vram: '24 GB+ Desktop GPUs (RTX 3090, RTX 4090, RTX A5000 Desktop, RTX 5090)',
+    engine: 'vLLM 0.33.0 + Qwen3.8-27B-W4A16',
     context: '150K KV pool',
-    decode: '75.5 peak MTP decode (n=1) · 260 tok/s n=4 concurrent · 3,247 effective / 6,892 peak cached prefill',
+    decode: '70.4 tok/s sustained n=1 · 260 tok/s n=4 concurrent',
     highlight: true,
   },
 ];
 
 /* ── Data: Nov 2026 cloud frontier models & API pricing (per 1M tokens) ─ */
-/* Unified frontier names (zero drift across the site):
-   Claude Opus 5.5 · Claude Sonnet 5.5 · GPT-6.2 Astra · Gemini 4 Argon. */
 
 export const CLOUD_MODELS: CloudModel[] = [
   {
@@ -244,49 +227,42 @@ export const CLOUD_MODELS: CloudModel[] = [
     vendor: 'anthropic',
     priceInPer1m: 4,
     priceOutPer1m: 20,
-    aaScore: 65,
-    note: '#1 Coding Agent',
   },
   {
     name: 'GPT-6.2 Astra',
     vendor: 'openai',
     priceInPer1m: 8,
     priceOutPer1m: 40,
-    aaScore: 62,
   },
   {
     name: 'Gemini 4 Argon',
     vendor: 'google',
-    priceInPer1m: 4,
-    priceOutPer1m: 20,
-    priceNote: 'standard post-Dec 1; $2/$10 intro',
-    aaScore: 60,
+    priceInPer1m: 2,
+    priceOutPer1m: 10,
+    priceNote: 'intro rate (active Nov 2026); $4/$20 standard from Dec 1, 2026',
   },
   {
     name: 'Claude Sonnet 5.5',
     vendor: 'anthropic',
     priceInPer1m: 2,
     priceOutPer1m: 10,
-    priceNote: 'Standard',
   },
   {
     name: 'GPT-6.2 Sol',
     vendor: 'openai',
     priceInPer1m: 2,
     priceOutPer1m: 10,
-    priceNote: 'Standard',
   },
   {
     name: 'Claude Haiku 5.5',
     vendor: 'anthropic',
-    priceInPer1m: 0.25,
-    priceOutPer1m: 1.25,
-    priceNote: '$0.10–$0.50 / $0.50–$2.50 · Budget',
+    priceInPer1m: 0.1,
+    priceOutPer1m: 0.5,
+    priceNote: '≤100K context; $0.50/$2.50 per 1M above 100K',
   },
 ];
 
 export const CLOUD_MODELS_VERIFIED_ON = '2026-11-16';
-export const AA_BENCH_VERSION = 'AA v5.0.1';
 
 /* ── Data: Qwen3.8-27B Apache-2.0 vendor benchmarks (Aug 14, 2026 model card) ─ */
 
@@ -300,7 +276,7 @@ export const QWEN38_BENCHMARKS: QwenBench[] = [
 export const QWEN38_MODEL_CARD_DATE = '2026-08-14';
 export const QWEN38_LICENSE = 'Apache-2.0';
 
-/* ── Data: Verified sandbox & architecture specs (from `src/`) ────── */
+/* ── Data: Sandbox & architecture specs ─────────────────────────────── */
 
 export const ARCHITECTURE: ArchitectureSpec = {
   pathLayers: 5,
@@ -326,10 +302,7 @@ export const ARCHITECTURE: ArchitectureSpec = {
   },
 };
 
-/* ── Data: Four buyer-facing positioning fronts (zero jargon) ─────── */
-/* Wing 1 + Wing 2 (the two ways to run agents) and the two service
-   fronts that turnkey engineering teams. Replaces internal "Rust stdio
-   MCP microkernel" phrasing with plain value language. */
+/* ── Data: Four buyer-facing positioning fronts ────────────────────── */
 
 export const POSITIONING_FRONTS: PositioningFront[] = [
   {
@@ -358,7 +331,7 @@ export const POSITIONING_FRONTS: PositioningFront[] = [
   },
 ];
 
-/* ── Formatting helpers ───────────────────────────────────────────── */
+/* ── Formatting helpers ─────────────────────────────────────────────── */
 
 export function formatInt(n: number): string {
   return n.toLocaleString('en-US');

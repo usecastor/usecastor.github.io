@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.22.0",
-  "description": "Castor Technologies — sovereign zero-egress autonomous coding infrastructure. Static marketing site.",
+  "description": "Castor Technologies — zero-egress autonomous coding infrastructure. Static marketing site.",
   "scripts": {
     "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",

@@ -2,20 +2,16 @@
 /**
  * ACT 1 — HeroCinema.
  * Full-bleed #05070B dark-silicon stage: a completely STATIC background
- * (subtle CSS grid + radial vignette — nothing spins, sweeps, or animates
- * behind the instrument), a fixed-height DOM-based LLM streaming window that
- * emits REAL tokens / sub-word chunks / lines / tool calls at authentic
- * high-speed LLM cadence with a live amber cursor `▋` at the writing head —
+ * (subtle CSS grid + radial vignette), a fixed-height DOM-based LLM
+ * streaming window that emits real tokens / sub-word chunks / lines / tool
+ * calls at authentic high-speed LLM cadence with a live amber cursor `▋` at
+ * the writing head —
  *   n=4 · 2×2 split-terminal grid · ~65 tok/s per pane · 260 tok/s aggregate
  *   n=1 · single expanded stream · 70.4 tok/s
- * — rolling infinitely through 3 distinct polyglot engineering tasks per pane
- * (TypeScript/Next.js · Python/FastAPI · PostgreSQL/Prisma · Go/infra) with
- * zero dead pauses and zero jarring resets, plus the liquid client installer
- * with the page's single solid-amber primary button.
- *
- * Zero scroll hijacking, zero stuck opacity — the hero paints at full
- * visibility from the first frame, and every initial value is deterministic
- * (identical SSR and first-client render, no #418).
+ * — rolling infinitely through 3 distinct polyglot engineering tasks per
+ * pane (TypeScript/Next.js · Python/FastAPI · PostgreSQL/Prisma · Go/infra),
+ * plus the liquid client installer with the page's single solid-amber
+ * primary button.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useMotionTemplate, useMotionValue } from 'motion/react';
@@ -36,7 +32,7 @@ function writeClipboard(text: string): void {
  * The client tab strip and the command bar share the exact same
  * `w-full max-w-3xl mx-auto` container, so they are pixel-aligned at
  * every breakpoint. The command text is `whitespace-nowrap
- * overflow-x-auto` — switching to the 3rd tab (100% Local / Air-Gap)
+ * overflow-x-auto` — switching to the Source tab (the longest command)
  * scrolls horizontally instead of wrapping to a second line, and the
  * page height never shifts.
  */
@@ -45,14 +41,14 @@ const CLIENTS: Array<{ id: string; label: string; cmd: string }> = [
   { id: 'all', label: 'All Clients', cmd: 'npx -y mcp-castor install --client all' },
   { id: 'claude', label: 'Claude Code', cmd: 'npx -y mcp-castor install --client claude' },
   {
-    id: 'gemini',
-    label: 'Gemini CLI',
-    cmd: 'npx -y mcp-castor install --client gemini',
+    id: 'antigravity',
+    label: 'Antigravity',
+    cmd: 'npx -y mcp-castor install --client antigravity',
   },
   {
-    id: 'airgap',
-    label: '100% Local / Air-Gap',
-    cmd: 'cargo install --path . --no-default-features --features mcp,ast --offline',
+    id: 'source',
+    label: 'Source (No Outbound Paper)',
+    cmd: 'cargo install --path . --no-default-features --features mcp,ast',
   },
 ];
 
@@ -260,7 +256,7 @@ function buildTask(file: string, lines: StreamLine[]): StreamTask {
   };
 }
 
-/* ── Polyglot engineering workloads (zero Rust bias) ───────────────────
+/* ── Polyglot engineering workloads ─────────────────────────────────────
    Three rotating tasks per pane so each worker cycles endlessly through
    diverse stacks. Every task: prompt → read_file → one-sentence diagnosis
    → green `+` diff lines → green `✓` test pass. */
@@ -269,30 +265,30 @@ function buildTask(file: string, lines: StreamLine[]): StreamTask {
 const TS_TASKS: StreamTask[] = [
   buildTask('apps/web/auth/session.ts', [
     { kind: 'prompt', text: '> Fix the token refresh race in session.ts and run the auth suite' },
-    { kind: 'tool', text: '● read_file apps/web/auth/session.ts (212 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file apps/web/auth/session.ts (212 lines)' },
     { kind: 'para', text: 'Two concurrent refreshes rotate the same session twice inside the grace window.' },
     { kind: 'diff', text: 'if (await rotatedWithin(session, 30_000)) {' },
     { kind: 'diff', text: '  return cachedPair(session);' },
     { kind: 'diff', text: '}' },
-    { kind: 'test', text: '✓ vitest auth — 14 passed in 0.41s (exit 0)' },
+    { kind: 'test', text: '✓ npx vitest run apps/web/auth/session.test.ts — 14 passed in 0.41s (exit 0)' },
   ]),
   buildTask('components/CheckoutForm.tsx', [
     { kind: 'prompt', text: '> Validate the checkout form card fields fully offline' },
-    { kind: 'tool', text: '● read_file components/CheckoutForm.tsx (188 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file components/CheckoutForm.tsx (188 lines)' },
     { kind: 'para', text: 'Card number and expiry are checked client-side before any network egress.' },
-    { kind: 'diff', text: 'const luhn = (n: string) => validLuhn(n);' },
+    { kind: 'diff', text: 'const luhn = (n: string) => n.replace(/\\D/g, "").split("").reverse()' },
+    { kind: 'diff', text: '  .reduce((s, d, i) => s + (i % 2 ? Math.min(9, +d * 2) : +d), 0) % 10 === 0;' },
     { kind: 'diff', text: 'if (!luhn(card.number)) return setError("card");' },
-    { kind: 'diff', text: '}' },
-    { kind: 'test', text: '✓ vitest checkout — 8 passed in 0.33s (exit 0)' },
+    { kind: 'test', text: '✓ npx vitest run components/CheckoutForm.test.tsx — 8 passed in 0.33s (exit 0)' },
   ]),
   buildTask('lib/webhook.ts', [
     { kind: 'prompt', text: '> Verify the HMAC on inbound webhooks before processing' },
-    { kind: 'tool', text: '● read_file lib/webhook.ts (96 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file lib/webhook.ts (96 lines)' },
     { kind: 'para', text: 'The signature is compared with a constant-time check before the payload is parsed.' },
-    { kind: 'diff', text: 'const ok = timingSafeEqual(sig, expected);' },
+    { kind: 'diff', text: 'import { timingSafeEqual } from "crypto";' },
+    { kind: 'diff', text: 'const ok = timingSafeEqual(Buffer.from(sig), Buffer.from(expected));' },
     { kind: 'diff', text: 'if (!ok) return 401;' },
-    { kind: 'diff', text: '}' },
-    { kind: 'test', text: '✓ vitest webhook — 11 passed in 0.29s (exit 0)' },
+    { kind: 'test', text: '✓ npx vitest run lib/webhook.test.ts — 11 passed in 0.29s (exit 0)' },
   ]),
 ];
 
@@ -300,7 +296,7 @@ const TS_TASKS: StreamTask[] = [
 const PY_TASKS: StreamTask[] = [
   buildTask('api/rate_limit.py', [
     { kind: 'prompt', text: '> Replace the fixed token refill with a sliding-window bucket' },
-    { kind: 'tool', text: '● read_file api/rate_limit.py (141 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file api/rate_limit.py (141 lines)' },
     { kind: 'para', text: 'A 100 rps burst drained the whole budget in one tick; a sliding window fixes it.' },
     { kind: 'diff', text: 'now = monotonic()' },
     { kind: 'diff', text: 'self.window = [t for t in self.window if now - t < WINDOW]' },
@@ -309,21 +305,22 @@ const PY_TASKS: StreamTask[] = [
   ]),
   buildTask('services/billing_sync.py', [
     { kind: 'prompt', text: '> Sync invoices idempotently so replayed events never double-charge' },
-    { kind: 'tool', text: '● read_file services/billing_sync.py (203 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file services/billing_sync.py (203 lines)' },
     { kind: 'para', text: 'Each invoice carries an idempotency key that is checked before the ledger insert.' },
-    { kind: 'diff', text: 'if exists(ledger, invoice.idempotency_key):' },
+    { kind: 'diff', text: 'if ledger.has(invoice.idempotency_key):' },
     { kind: 'diff', text: '    return invoice' },
     { kind: 'diff', text: 'ledger.insert(invoice)' },
-    { kind: 'test', text: '✓ pytest tests/test_billing.py — 12 passed in 0.52s' },
+    { kind: 'test', text: '✓ pytest tests/test_billing_sync.py — 12 passed in 0.52s' },
   ]),
   buildTask('jobs/ingest_queue.py', [
     { kind: 'prompt', text: '> Dedupe queued ingestion jobs by payload hash' },
-    { kind: 'tool', text: '● read_file jobs/ingest_queue.py (117 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file jobs/ingest_queue.py (117 lines)' },
     { kind: 'para', text: 'Jobs are keyed by the sha256 of the payload so replayed events are dropped.' },
-    { kind: 'diff', text: 'key = sha256(payload).hexdigest()' },
+    { kind: 'diff', text: 'import hashlib' },
+    { kind: 'diff', text: 'key = hashlib.sha256(payload).hexdigest()' },
     { kind: 'diff', text: 'if key in seen: continue' },
     { kind: 'diff', text: 'queue.put((key, payload))' },
-    { kind: 'test', text: '✓ pytest tests/test_ingest.py — 7 passed in 0.31s' },
+    { kind: 'test', text: '✓ pytest tests/test_ingest_queue.py — 7 passed in 0.31s' },
   ]),
 ];
 
@@ -331,28 +328,28 @@ const PY_TASKS: StreamTask[] = [
 const SQL_TASKS: StreamTask[] = [
   buildTask('db/migrations/042_indexes.sql', [
     { kind: 'prompt', text: '> Add a covering index for the sessions hot path' },
-    { kind: 'tool', text: '● read_file db/migrations/042_indexes.sql (58 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file db/migrations/042_indexes.sql (58 lines)' },
     { kind: 'para', text: 'The refresh lookup seq-scans sessions; a covering index on (user_id, expires_at) kills it.' },
     { kind: 'diff', text: 'CREATE INDEX CONCURRENTLY idx_sessions_user_expires' },
     { kind: 'diff', text: 'ON sessions (user_id, expires_at) INCLUDE (token_hash);' },
-    { kind: 'test', text: '✓ psql verify — 11 checks ok' },
+    { kind: 'test', text: '✓ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/042_indexes.sql' },
   ]),
   buildTask('db/queries/ledger_rollup.sql', [
     { kind: 'prompt', text: '> Make the daily ledger rollup avoid sequential scans' },
-    { kind: 'tool', text: '● read_file db/queries/ledger_rollup.sql (74 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file db/queries/ledger_rollup.sql (74 lines)' },
     { kind: 'para', text: 'The rollup is driven by the range index on (day, account) with an incremental cursor.' },
     { kind: 'diff', text: 'WHERE day = :day AND account BETWEEN :lo AND :hi' },
     { kind: 'diff', text: 'GROUP BY account' },
-    { kind: 'test', text: '✓ psql explain — 0 seq scans' },
+    { kind: 'test', text: '✓ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/queries/ledger_rollup.sql' },
   ]),
   buildTask('prisma/schema.prisma', [
     { kind: 'prompt', text: '> Validate the Prisma schema before regenerating the client' },
-    { kind: 'tool', text: '● read_file prisma/schema.prisma (320 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file prisma/schema.prisma (320 lines)' },
     { kind: 'para', text: 'Relations and indexes resolve cleanly; the client regenerates from the validated schema.' },
     { kind: 'diff', text: 'model Invoice {' },
     { kind: 'diff', text: '  idempotencyKey String @unique' },
     { kind: 'diff', text: '}' },
-    { kind: 'test', text: '✓ prisma validate — schema ok' },
+    { kind: 'test', text: '✓ npx prisma validate — schema ok' },
   ]),
 ];
 
@@ -360,7 +357,7 @@ const SQL_TASKS: StreamTask[] = [
 const GO_TASKS: StreamTask[] = [
   buildTask('server/egress_proxy.go', [
     { kind: 'prompt', text: '> Deny outbound connects in the egress proxy default policy' },
-    { kind: 'tool', text: '● read_file server/egress_proxy.go (244 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file server/egress_proxy.go (244 lines)' },
     { kind: 'para', text: 'Raw dials bypass the proxy; the default rule now denies outbound connects.' },
     { kind: 'diff', text: 'if !allowlisted(host) {' },
     { kind: 'diff', text: '    return denyConn(conn, "egress denied")' },
@@ -369,18 +366,19 @@ const GO_TASKS: StreamTask[] = [
   ]),
   buildTask('cmd/worker_pool.go', [
     { kind: 'prompt', text: '> Cap the worker pool to the GPU count and recycle idle workers' },
-    { kind: 'tool', text: '● read_file cmd/worker_pool.go (189 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file cmd/worker_pool.go (189 lines)' },
     { kind: 'para', text: 'Pool size is pinned to the detected GPU count; idle workers are reclaimed after the TTL.' },
     { kind: 'diff', text: 'size := detectGPUs()' },
-    { kind: 'diff', text: 'if w.idleFor() > ttl { w.stop() }' },
+    { kind: 'diff', text: 'pool := NewWorkerPool(size)' },
+    { kind: 'diff', text: 'pool.RecycleIdle(ttl)' },
     { kind: 'test', text: '✓ go test ./cmd/... — 15 passed in 0.58s' },
   ]),
   buildTask('deploy/nginx.conf', [
     { kind: 'prompt', text: '> Harden the nginx config for the air-gapped edge' },
-    { kind: 'tool', text: '● read_file deploy/nginx.conf (87 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file deploy/nginx.conf (87 lines)' },
     { kind: 'para', text: 'Server tokens are off, timeouts tightened, and the upstream pinned to the local engine.' },
     { kind: 'diff', text: 'server_tokens off;' },
-    { kind: 'diff', text: 'proxy_pass http://127.0.0.1:18200;' },
+    { kind: 'diff', text: 'proxy_pass http://127.0.0.1:18020;' },
     { kind: 'test', text: '✓ nginx -t — syntax ok' },
   ]),
 ];
@@ -397,33 +395,33 @@ const QUAD_PANES: PaneSpec[] = [
 const N1_TASKS: StreamTask[] = [
   buildTask('apps/web/auth/session.ts', [
     { kind: 'prompt', text: '> Fix the token refresh race and run the auth suite' },
-    { kind: 'tool', text: '● read_file apps/web/auth/session.ts (212 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file apps/web/auth/session.ts (212 lines)' },
     { kind: 'para', text: 'Two concurrent refreshes rotate the same session twice inside the grace window.' },
     { kind: 'diff', text: 'if (await rotatedWithin(session, 30_000)) {' },
     { kind: 'diff', text: '  return cachedPair(session);' },
     { kind: 'diff', text: '}' },
-    { kind: 'tool', text: '● bash npx vitest run auth' },
-    { kind: 'test', text: '✓ vitest auth — 14 passed in 0.41s (exit 0)' },
+    { kind: 'tool', text: '● bash npx vitest run apps/web/auth/session.test.ts' },
+    { kind: 'test', text: '✓ vitest apps/web/auth/session.test.ts — 14 passed in 0.41s (exit 0)' },
   ]),
   buildTask('api/rate_limit.py', [
     { kind: 'prompt', text: '> Replace the fixed token refill with a sliding-window bucket' },
-    { kind: 'tool', text: '● read_file api/rate_limit.py (141 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file api/rate_limit.py (141 lines)' },
     { kind: 'para', text: 'A 100 rps burst drained the whole budget in one tick; a sliding window fixes it.' },
     { kind: 'diff', text: 'now = monotonic()' },
     { kind: 'diff', text: 'self.window = [t for t in self.window if now - t < WINDOW]' },
     { kind: 'diff', text: 'free = self.capacity - len(self.window)' },
-    { kind: 'tool', text: '● bash python -m pytest tests/test_rate_limit.py' },
-    { kind: 'test', text: '✓ pytest — 9 passed in 0.38s' },
+    { kind: 'tool', text: '● bash pytest tests/test_rate_limit.py' },
+    { kind: 'test', text: '✓ pytest tests/test_rate_limit.py — 9 passed in 0.38s' },
   ]),
   buildTask('server/egress_proxy.go', [
     { kind: 'prompt', text: '> Deny outbound connects in the egress proxy default policy' },
-    { kind: 'tool', text: '● read_file server/egress_proxy.go (244 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'tool', text: '● read_file server/egress_proxy.go (244 lines)' },
     { kind: 'para', text: 'Raw dials bypass the proxy; the default rule now denies outbound connects.' },
     { kind: 'diff', text: 'if !allowlisted(host) {' },
     { kind: 'diff', text: '    return denyConn(conn, "egress denied")' },
     { kind: 'diff', text: '}' },
     { kind: 'tool', text: '● bash go test ./server/...' },
-    { kind: 'test', text: '✓ go test — 22 passed in 0.64s' },
+    { kind: 'test', text: '✓ go test ./server/... — 22 passed in 0.64s' },
   ]),
 ];
 
@@ -584,11 +582,11 @@ function Pane({
   }
   if (display.length > MAX_DISPLAY) display = display.slice(-MAX_DISPLAY);
 
-  const counter = Math.floor(st.lifetime);
+  const counter = Math.floor(state.lifetime);
   const paneMargin = wide ? 'm-1.5 rounded-lg' : 'm-[1.5px]';
 
   // Auto-scroll the pane body to the newest line as it grows.
-  const scrollKey = `${st.taskIdx}:${st.lineIdx}:${st.tokenInLine.toFixed(1)}`;
+  const scrollKey = `${state.taskIdx}:${state.lineIdx}:${state.tokenInLine.toFixed(1)}`;
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -631,7 +629,7 @@ function Pane({
   );
 }
 
-function SSEStreamer() {
+function SSEStreamer({ base }: { base: string }) {
   const [mode, setMode] = useState<1 | 4>(4);
   // Auto-stream on initial page load: the stream is LIVE for every visitor
   // from the very first frame. Text tokens appended into a code terminal
@@ -704,8 +702,6 @@ function SSEStreamer() {
 
   const panes = mode === 4 ? QUAD_PANES : [SINGLE_PANE];
   const states = activeStates;
-  const aggregateTokens = states.reduce((a, s) => a + s.lifetime, 0);
-  const aggregateRate = mode === 4 ? N4_RATE : N1_RATE;
 
   return (
     <div ref={stageRef} className="mx-auto mt-12 w-full min-w-0 max-w-5xl">
@@ -775,7 +771,7 @@ function SSEStreamer() {
                 aria-label={paused ? 'Resume the live stream' : 'Pause the live stream'}
                 className={`flex h-9 shrink-0 items-center gap-1.5 rounded-md px-2.5 font-mono text-[10.5px] font-semibold transition-colors ${
                   paused
-                    ? 'border border-[#F97316]/60 bg-[#F97316] text-[#0B0F17] hover:bg-[#FB923C]'
+                    ? 'border border-[#F97316]/60 bg-[#F97316]/10 text-[#FB923C] hover:bg-[#F97316]/20'
                     : 'border border-white/10 bg-black/40 text-[#D7DEE9] hover:border-white/25'
                 }`}
               >
@@ -817,32 +813,33 @@ function SSEStreamer() {
           </div>
 
           {/* ── Bottom telemetry & cloud-arbitrage comparison bar ────
-              Four rock-solid live readouts — deterministic values,
-              never starting at 0. */}
+              Four deterministic readouts, every value sourced from the
+              Nov 21, 2026 `castor stats` / vLLM snapshot. */}
           <div className="grid w-full max-w-full min-w-0 grid-cols-2 gap-px overflow-hidden border-t border-white/10 bg-white/5 lg:grid-cols-4">
             <NumberFlowGroup>
               <div className="min-w-0 bg-[#0A0D14] px-4 py-3 sm:px-5">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
-                  Live Output
+                  Effective Prefill
                 </p>
-                <span className="mt-0.5 font-mono text-[14px] font-semibold tabular-nums text-[#F5F7FA] sm:text-[15px]">
-                  {Math.round(aggregateTokens)}
-                </span>
+                <SafeNumberFlow
+                  value={LEDGER_76DAY.effectivePrefillTps}
+                  suffix=" tok/s"
+                  format={{ useGrouping: true, maximumFractionDigits: 0 }}
+                  className="mt-0.5 font-mono text-[14px] font-semibold tabular-nums text-[#F5F7FA] sm:text-[15px]"
+                />
                 <span className="ml-1 font-mono text-[10.5px] text-[#5D6B80]">
-                  tokens · {aggregateRate.toFixed(1)} tok/s
+                  warm + cold
                 </span>
               </div>
               <div className="min-w-0 bg-[#0A0D14] px-4 py-3 sm:px-5">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
                   Decode (n=4 / n=1)
                 </p>
-                <SafeNumberFlow
-                  value={aggregateRate}
-                  format={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
-                  className="mt-0.5 font-mono text-[14px] font-semibold text-[#F5F7FA] sm:text-[15px]"
-                />
+                <span className="mt-0.5 font-mono text-[14px] font-semibold tabular-nums text-[#F5F7FA] sm:text-[15px]">
+                  {N4_RATE.toFixed(1)} / {N1_RATE.toFixed(1)}
+                </span>
                 <span className="ml-1 font-mono text-[10.5px] text-[#5D6B80]">
-                  tok/s
+                  tok/s aggregate / sustained
                 </span>
               </div>
               <div className="min-w-0 bg-[#0A0D14] px-4 py-3 sm:px-5">
@@ -853,7 +850,7 @@ function SSEStreamer() {
                   value={LEDGER_76DAY.cacheHitPct}
                   suffix="%"
                   format={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
-                  className="mt-0.5 font-mono text-[14px] font-semibold text-[#F5F7FA] sm:text-[15px]"
+                  className="mt-0.5 font-mono text-[14px] font-semibold tabular-nums text-[#F5F7FA] sm:text-[15px]"
                 />
                 <span className="ml-1 font-mono text-[10.5px] text-[#5D6B80]">
                   across 2.77B tokens
@@ -863,13 +860,11 @@ function SSEStreamer() {
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
                   Local GPU Cost
                 </p>
-                <span className="mt-0.5 font-mono text-[14px] font-semibold text-[#FB923C] sm:text-[15px]">
+                <span className="mt-0.5 font-mono text-[14px] font-semibold tabular-nums text-[#FB923C] sm:text-[15px]">
                   $0.0000
                 </span>
                 <span className="ml-2 font-mono text-[10.5px] text-[#5D6B80]">
-                  <span className="whitespace-nowrap line-through decoration-[#FB923C]/60">
-                    $1.42 cloud
-                  </span>
+                  ~$0.001 power / token-loop
                 </span>
               </div>
             </NumberFlowGroup>
@@ -880,12 +875,12 @@ function SSEStreamer() {
             <p className="font-mono text-[11px] tracking-[0.03em] text-[#8C95A6]">
               {HARDWARE_SNAPSHOT.gpu.model.replace('NVIDIA GeForce ', '')} (
               {Math.round(HARDWARE_SNAPSHOT.gpu.vramTotalMiB / 1024)} GB) ·{' '}
-              {HARDWARE_SNAPSHOT.engine.model.split('-')[0]}-W4A16 ·{' '}
+              {HARDWARE_SNAPSHOT.engine.model.replace(/-AutoRound(-fast)?$/, '')} ·{' '}
               {HARDWARE_SNAPSHOT.engine.name} · {HARDWARE_SNAPSHOT.gpu.powerDrawW}{' '}
               W · {HARDWARE_SNAPSHOT.gpu.tempC} °C
             </p>
             <a
-              href="/benchmarks/qwen3-8-27b-rtx-3090/"
+              href={`${base}/benchmarks/qwen3-8-27b-rtx-3090/`}
               className="whitespace-nowrap font-mono text-[11.5px] text-[#7FA6FF] underline decoration-white/20 underline-offset-4 transition-colors hover:text-[#A9C6FF]"
             >
               78-Day RTX 3090 Benchmarks →
@@ -918,7 +913,7 @@ function useSpotlight() {
 
 /* ── Root ────────────────────────────────────────────────────────────── */
 
-export default function HeroCinema() {
+export default function HeroCinema({ base }: { base: string }) {
   const spotlight = useSpotlight();
 
   return (
@@ -970,7 +965,7 @@ export default function HeroCinema() {
 
         <InstallerBar />
 
-        <SSEStreamer />
+        <SSEStreamer base={base} />
       </div>
     </section>
   );

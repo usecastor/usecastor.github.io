@@ -10,8 +10,6 @@
  * 1st-year ROI fill), and a live NumberFlow annual-savings readout.
  * Dispatches `castor:economics-update` so the DeployDeck enriches its
  * mailto CTAs with the visitor's actual numbers.
- *
- * Zero scroll hijacking, zero stuck opacity.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useMotionTemplate, useMotionValue } from 'motion/react';
@@ -64,30 +62,31 @@ const PRESETS: Array<{
 /* ── Hardware tiers for the break-even timeline bar ───────────────────
    `label` is the full descriptive name; `rigShortName` is the crisp
    short label used in the KPI card + break-even bar so nothing
-   truncates at 1440×900 or 390px. */
+   truncates at 1440×900 or 390px. Prices are realistic Nov 2026
+   street prices for the full rig / workstation. */
 const HW_TIERS = [
   {
     key: 'solo',
     label: '1× RTX 3090',
-    rigShortName: 'RTX 3090 ($850)',
+    rigShortName: 'RTX 3090 Rig (~$1,400)',
     sub: 'solo dev',
-    cost: 850,
+    cost: 1400,
     maxTeam: 4,
   },
   {
     key: 'team',
     label: '1× RTX 5090 Workstation',
-    rigShortName: 'RTX 5090 ($3.8K)',
+    rigShortName: 'RTX 5090 Workstation (~$4,500)',
     sub: 'small team',
-    cost: 3800,
+    cost: 4500,
     maxTeam: 14,
   },
   {
     key: 'node',
     label: 'Multi-GPU Team vLLM Node',
-    rigShortName: 'Team GPU Node ($16K)',
+    rigShortName: 'Multi-GPU Team Server (~$18,000)',
     sub: '15+ engineers',
-    cost: 16000,
+    cost: 18000,
     maxTeam: Infinity,
   },
 ] as const;
@@ -117,7 +116,7 @@ export default function SavingsInstrument() {
   const [team, setTeam] = useState(5); // 5-Eng Team preset
   const [volume, setVolume] = useState(150);
   const [modelIdx, setModelIdx] = useState(DEFAULT_MODEL_INDEX);
-  const [discount, setDiscount] = useState(true); // 70% cloud prompt-cache discount
+  const [discount, setDiscount] = useState(true); // 90% cloud prompt-cache read discount
 
   const model: CloudModel = CLOUD_MODELS[MODEL_INDICES[modelIdx]];
 
@@ -342,7 +341,7 @@ export default function SavingsInstrument() {
                 <span
                   className={`min-w-0 ${discount ? 'text-[#F5F7FA]' : 'text-[#A3AEBF]'}`}
                 >
-                  70% Cloud Prompt-Cache Discount
+                  90% Cloud Prompt-Cache Read Discount
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
                   <span

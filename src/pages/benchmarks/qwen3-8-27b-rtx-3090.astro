@@ -41,19 +41,19 @@ const techArticle = {
   author: { '@type': 'Organization', name: 'Castor Technologies' },
   publisher: { '@type': 'Organization', name: 'Castor Technologies' },
   mainEntityOfPage: `${root}benchmarks/qwen3-8-27b-rtx-3090/`,
-  wordCount: 2400,
+  wordCount: 1100,
   keywords:
     'Qwen3.8-27B, RTX 3090, vLLM, MTP speculative decode, tok/s prefill, KV cache, W4A16, llama.cpp, DFlash2, local LLM benchmark, air-gapped',
   abstract:
-    'A 78-day production ledger (Sep 4 – Nov 21, 2026) of Qwen3.8-27B-W4A16 served by vLLM 0.33.0 on a single RTX 3090: 2.77B tokens, 93.8% session KV-cache hit, 6,892 tok/s peak cached prefill, 70.4 tok/s sustained decode, $10.12 in electricity vs. a $6,044.48 cloud counterfactual ($6,034.36 net saved).',
+    'A 78-day production ledger (Sep 4 – Nov 21, 2026) of Qwen3.8-27B-W4A16 served by vLLM 0.33.0 on a single RTX 3090: 2.77B tokens, 93.8% session KV-cache hit, 3,247 tok/s effective prefill, 70.4 tok/s sustained decode, $10.12 in electricity vs. a $6,044.48 cloud counterfactual ($6,034.36 net saved).',
 };
 
 const jsonLd = [breadcrumb, techArticle];
 ---
 
 <Layout
-  title="Qwen3.8-27B on RTX 3090 Benchmarks — 78-Day Castor Telemetry (6,892 tok/s Peak Cached Prefill)"
-  description="Complete measured 78-day ledger (Sep 4 – Nov 21, 2026) of Qwen3.8-27B-W4A16 on a single RTX 3090 under vLLM 0.33.0: 2.77B tokens, 93.8% session KV-cache hit, 3,247 tok/s effective prefill (6,892 peak cached), 70.4 tok/s sustained decode — $10.12 power vs. a $6,044.48 cloud counterfactual ($6,034.36 net saved). 8/12/16/24 GB VRAM tier matrix included."
+  title="Qwen3.8-27B on RTX 3090 Benchmarks — 78-Day Castor Telemetry"
+  description="Complete measured 78-day ledger (Sep 4 – Nov 21, 2026) of Qwen3.8-27B-W4A16 on a single RTX 3090 under vLLM 0.33.0: 2.77B tokens, 93.8% session KV-cache hit, 3,247 tok/s effective prefill, 70.4 tok/s sustained decode, 260 tok/s aggregate across n=4 concurrent streams — $10.12 power vs. a $6,044.48 cloud counterfactual ($6,034.36 net saved). VRAM tier matrix from 8 GB to 24 GB+ included."
   canonicalPath="/benchmarks/qwen3-8-27b-rtx-3090/"
   jsonLd={jsonLd}
 >
@@ -72,7 +72,7 @@ const jsonLd = [breadcrumb, techArticle];
           <span class="text-local">78 Days of Measured Telemetry.</span>
         </h1>
         <p class="mt-4 max-w-2xl font-sans text-[15px] leading-relaxed text-ink-secondary sm:text-base">
-          A live <code class="am-code">castor stats</code> ledger captured every
+          A <code class="am-code">castor stats</code> ledger captured every
           turn over <b>78 days (Sep 4 – Nov 21, 2026)</b> on one RTX 3090
           running <code class="am-code">Qwen3.8-27B-W4A16-AutoRound-fast</code>
           under vLLM 0.33.0 with MTP speculative decoding — 2.77 billion
@@ -103,12 +103,12 @@ const jsonLd = [breadcrumb, techArticle];
             </p>
           </div>
           <div class="p-4">
-            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Prefill (peak cached)</p>
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Prefill (effective)</p>
             <p class="tabular mt-1 font-display text-2xl font-bold text-ink md:text-3xl">
-              6,892
+              {L.effectivePrefillTps.toLocaleString('en-US')}
             </p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              tok/s · {L.effectivePrefillTps.toLocaleString('en-US')} effective
+              tok/s effective prefill (warm + cold)
             </p>
           </div>
           <div class="p-4">
@@ -130,7 +130,7 @@ const jsonLd = [breadcrumb, techArticle];
         <header>
           <div class="folio-bar">
             <span class="folio-coord">
-              the 78-day ledger · <code class="am-code">./target/release/castor stats</code>
+              the 78-day ledger · <code class="am-code">castor stats</code>
             </span>
             <span class="folio-index">01 / 05</span>
           </div>
@@ -140,8 +140,7 @@ const jsonLd = [breadcrumb, techArticle];
           <p class="mt-3 max-w-2xl font-sans text-sm leading-relaxed text-ink-secondary">
             Every figure below is a direct output of
             <code class="am-code">castor stats</code> aggregated over the
-            {L.windowStart} → {L.windowEnd} window — no sampling, no extrapolation,
-            no cherry-picked peaks.
+            {L.windowStart} → {L.windowEnd} window.
           </p>
         </header>
 
@@ -206,18 +205,9 @@ const jsonLd = [breadcrumb, techArticle];
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.days}-day mean</p>
           </div>
           <div class="p-4">
-            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Peak MTP decode</p>
-            <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
-              {L.peakMtpDecodeTps} tok/s
-            </p>
-            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              peak single-stream (n=1)
-            </p>
-          </div>
-          <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Concurrent decode</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
-              260 tok/s
+              {L.concurrentN4DecodeTps} tok/s
             </p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
               aggregate across n=4 concurrent · warm KV prefix
@@ -231,15 +221,6 @@ const jsonLd = [breadcrumb, techArticle];
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">effective prefill (warm + cold)</p>
           </div>
           <div class="p-4">
-            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Peak cached prefill</p>
-            <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
-              {L.peakCachedPrefillTps.toLocaleString('en-US')} tok/s
-            </p>
-            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              warm KV-cache prefill peak
-            </p>
-          </div>
-          <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">GPU compute time</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">{L.gpuComputeDisplay}</p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.sessionWallClock} session wall-clock</p>
@@ -248,7 +229,7 @@ const jsonLd = [breadcrumb, techArticle];
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Electricity cost</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">${L.electricityUsd}</p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              {L.electricityKwh} kWh @ ${L.electricityRateUsdPerKwh}/kWh · {L.gpuTdpW}W TDP
+              {L.electricityKwh} kWh @ ${L.electricityRateUsdPerKwh}/kWh · 262.5 W locked limit (350 W stock)
             </p>
           </div>
           <div class="p-4">
@@ -268,7 +249,7 @@ const jsonLd = [breadcrumb, techArticle];
                 <p class="font-mono text-[11px] text-ink-secondary">{L.netSavingsPct}% of cloud cost</p>
               </div>
               <p class="font-mono text-[11px] text-ink-secondary">
-                ${L.electricityUsd} electricity ({L.electricityKwh} kWh) vs. ${L.cloudCounterfactualUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} Sonnet-tier counterfactual — full window, no sampling
+                ${L.electricityUsd} electricity ({L.electricityKwh} kWh) vs. ${L.cloudCounterfactualUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} Sonnet-tier counterfactual — full 78-day window
               </p>
             </div>
           </div>
@@ -282,7 +263,7 @@ const jsonLd = [breadcrumb, techArticle];
         <header>
           <div class="folio-bar">
             <span class="folio-coord">
-              live hardware snapshot · {H.asOf}
+              hardware snapshot · {H.asOf}
             </span>
             <span class="folio-index">02 / 05</span>
           </div>
@@ -291,10 +272,11 @@ const jsonLd = [breadcrumb, techArticle];
             <code class="am-code">nvidia-smi</code>
           </h2>
           <p class="mt-3 max-w-2xl font-sans text-sm leading-relaxed text-ink-secondary">
-            A live scrape of the serving stack on the day the ledger was
-            sealed: <code class="am-code">93.8%</code> KV-cache hit and
-            <code class="am-code">70.5%</code> MTP draft acceptance — matching the
-            78-day window average.
+            Single-day vLLM <code class="am-code">/metrics</code> snapshot
+            (2026-11-21): <code class="am-code">70.5%</code> MTP draft
+            acceptance with a <code class="am-code">3.45</code> mean acceptance
+            length, alongside the serving stack's
+            <code class="am-code">nvidia-smi</code> readings from the same day.
           </p>
         </header>
 
@@ -305,7 +287,7 @@ const jsonLd = [breadcrumb, techArticle];
               class="flex items-center justify-between border-b border-[var(--bg-instrument-border)] bg-[var(--bg-instrument-raised)] px-4 py-2"
             >
               <span class="font-mono text-[11px] uppercase tracking-widest text-ink-instrument-muted">
-                nvidia-smi · live
+                nvidia-smi · snapshot
               </span>
               <span class="font-mono text-[10px] text-ink-instrument-muted">{H.asOf}</span>
             </div>
@@ -392,13 +374,14 @@ const jsonLd = [breadcrumb, techArticle];
             <span class="folio-index">03 / 05</span>
           </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
-            8 GB → 24 GB: Same Kernel, Different Ceiling
+            VRAM Tiers: Same Kernel, Different Ceiling
           </h2>
           <p class="mt-3 max-w-2xl font-sans text-sm leading-relaxed text-ink-secondary">
-            Castor ships engine profiles for every tier. The
-            <b>24 GB row is the configuration this page benchmarks</b> —
+            The <b>24 GB+ row is the configuration this page benchmarks</b> —
             vLLM 0.33.0 with Qwen3.8-27B-W4A16-AutoRound-fast and MTP
-            speculative decode against a 150K KV pool.
+            speculative decode against a 150K KV pool. Smaller VRAM tiers run
+            smaller (7B–14B) or more aggressively quantized models, not the full
+            27B W4A16 build.
           </p>
         </header>
 
@@ -451,8 +434,8 @@ const jsonLd = [breadcrumb, techArticle];
             The model card (released {QWEN38_MODEL_CARD_DATE},
             <b>{QWEN38_LICENSE}</b> license) publishes the scores below.
             Castor serves the <code class="am-code">W4A16-AutoRound-fast</code>
-            quantization, which preserves these benchmarks within
-            ±2 points at a third of the memory footprint.
+            quantization — ~¼ the weight footprint of BF16 (~14 GB vs. ~54 GB
+            BF16) on this 24 GB GPU.
           </p>
         </header>
 
@@ -488,8 +471,9 @@ const jsonLd = [breadcrumb, techArticle];
               Hardware Rig
             </h3>
             <p class="mt-3 font-mono text-[12px] leading-relaxed text-ink-secondary">
-              Single NVIDIA GeForce RTX 3090 — 24 GB VRAM, 262.5 W power limit,
-              936 GB/s memory bandwidth, driver 616.92.
+              Single NVIDIA GeForce RTX 3090 — 24 GB VRAM, 350 W stock TDP
+              (power limit locked to 262.5 W for this run), 936 GB/s memory
+              bandwidth, driver 616.92.
             </p>
           </div>
           <div class="bg-surface p-6">
@@ -509,7 +493,7 @@ const jsonLd = [breadcrumb, techArticle];
               Full <code class="am-code">castor stats</code> ledger (Sep 4 – Nov 21,
               2026): {L.turns.toLocaleString('en-US')} autonomous turns,
               {L.toolCalls.toLocaleString('en-US')} sandboxed tool calls,
-              {L.totalTokensDisplay} tokens — no sampling, no extrapolation.
+              {L.totalTokensDisplay} tokens, every entry from the local audit log.
             </p>
           </div>
           <div class="bg-surface p-6">
@@ -536,14 +520,14 @@ const jsonLd = [breadcrumb, techArticle];
           <p class="mt-3 max-w-xl font-sans text-sm leading-relaxed text-ink-secondary">
             Install Castor as an MCP server on your machine, point it at your
             local engine, and run <code class="am-code">castor stats</code> to
-            watch your own 78-day ledger build in real time.
+            watch your own local token and cost ledger build from day one.
           </p>
           <div class="mt-6 flex flex-wrap gap-3">
             <a
               href="#quickstart"
               class="tactile-btn tactile-btn--primary"
             >
-              Jump to 60-Second Quickstart ↓
+              Jump to Quickstart ↓
             </a>
             <a
               href={`${base}/#savings`}

@@ -25,28 +25,28 @@ const breadcrumb = {
 
 const faqItems: Array<{ q: string; a: string }> = [
   {
-    q: 'Will my Claude Code sessions still feel like Claude Code?',
-    a: 'Yes. Your cloud lead architect (Claude Opus 5.5, Claude Sonnet 5.5, Gemini 4 Argon, or GPT-6.2 Astra) stays exactly where it is. Castor handles the tool-execution loop — file reads, edits, search, test runs — on your local model at $0 per token.',
+    q: 'How does Claude Code split work with Castor?',
+    a: 'It is two-tier routing. Your frontier CLI (Claude Code, Antigravity, Cursor, or Codex) stays in the cloud for the reasoning tier — planning, design decisions, and diff review at frontier rates. Castor takes the execution tier: the high-volume file reads, edits, searches, and test runs route to a local model on your GPU at $0 per token, over a loopback MCP connection. The session context both tiers share means the local peer never starts cold.',
   },
   {
     q: 'How does the 93.8% KV cache hit work?',
-    a: 'Multi-turn agent sessions reuse prior turn history from local VRAM. Over 78 days, 2.53B of 2.71B prompt tokens (93.8%) were served from the KV pool, which is why 24 GB of VRAM sustains a 150K-token context without thrashing.',
+    a: 'Multi-turn agent sessions reuse prior-turn history from the local KV cache in VRAM. Over the 78-day window, 2.53B of 2.71B prompt tokens — a 93.8% reported hit rate from the unrounded counts — were served from that session KV cache against a max_model_len of 150,000 tokens.',
   },
   {
     q: 'Which GPU do I need?',
-    a: 'Any 8 GB GPU works via the llama.cpp profile (~22–26 tok/s at 8K context). A 24 GB card (RTX 3090, 4090, or A5000) runs vLLM with Qwen3.8-27B-W4A16 and MTP speculative decode — 70.4 tok/s sustained, 75.5 tok/s peak, and 260 tok/s aggregate across n=4 concurrent streams.',
+    a: 'A 24 GB+ desktop GPU (RTX 3090, RTX 4090, RTX A5000 Desktop, RTX 5090) runs Qwen3.8-27B-W4A16 natively in VRAM under vLLM 0.33 with MTP speculative decode — 70.4 tok/s sustained at n=1, 260 tok/s aggregate at n=4 concurrent. 8–16 GB GPUs run 7B–14B models natively in VRAM via llama.cpp or Ollama, or run Ternary-Bonsai-2-27B with CPU offload on a 16 GB card.',
   },
   {
-    q: 'Is my code sent to any cloud provider by Castor?',
-    a: 'No. Castor runs the local model and its tool calls on loopback (127.0.0.1:18020–18022) inside a 5-layer sandbox — your codebase never leaves your machine through Castor. You can compile that out entirely for air-gapped deployments.',
+    q: 'Does Castor send code to the cloud?',
+    a: 'No. In Wing 1 (cloud + local hybrid), your frontier CLI still talks to its own cloud provider for planning and review — that connection belongs to the CLI, not to Castor. Castor itself makes zero cloud calls: local tool execution runs on loopback (127.0.0.1:18020–18022) inside the 5-layer sandbox, and your codebase never leaves your machine through Castor. For zero cloud calls at all, use Wing 2 — the 100% local-only, air-gapped deployment.',
   },
   {
     q: 'How much do I actually save?',
-    a: 'In the verified 78-day ledger, the same workload would have cost $6,044.48 at Sonnet-tier cloud pricing. Local serving cost $10.12 in electricity (56.2 kWh @ $0.18/kWh) — a 99.83% net saving of $6,034.36.',
+    a: 'As a counterfactual benchmark against Sonnet-tier API pricing ($2/$10 per 1M tokens): the same 78-day workload would have cost $6,044.48 in API fees. Serving it on the local GPU cost $10.12 in electricity (56.2 kWh @ $0.18/kWh) — a $6,034.36 reduction, 99.83% of the cloud cost.',
   },
   {
     q: 'Does this work with Antigravity, Cursor, or any other MCP host?',
-    a: 'Yes. Castor is a standard stdio MCP server exposing three tools (coworker, task, server). Anything that speaks MCP — Claude Code, Antigravity, Cursor, or a custom host — can register it with one command.',
+    a: 'Yes. Castor exposes exactly 3 MCP tools over stdio — castor_coworker, castor_task, and castor_server — which dispatch a local worker running the 8-tool core, plus the ast tools (ast_search / ast_replace) and the paper tool (paper_lookup). npx -y mcp-castor install auto-installs into Claude Code (--client claude) or Antigravity (--client antigravity); --client all registers both. Cursor, Codex, and any other stdio MCP client connect through the standard MCP config in their client settings.',
   },
 ];
 
@@ -61,7 +61,7 @@ const faqPage = {
 
 const techArticle = {
   '@type': 'TechArticle',
-  name: 'Cut Claude Code & Antigravity Token Costs by 90%+ with a Local GPU',
+  name: 'Cut Claude Code & Antigravity Token Costs with a Local GPU',
   datePublished: '2026-11-21',
   dateModified: '2026-11-21',
   author: { '@type': 'Organization', name: 'Castor Technologies' },
@@ -70,12 +70,12 @@ const techArticle = {
   keywords:
     'Claude Code, Antigravity, local LLM, Qwen3.8-27B, MCP, token costs, KV cache, vLLM, cost reduction, coding agent',
   abstract:
-    'Castor pairs your cloud lead architect with a local 27B model (Qwen3.8-27B or Ternary-Bonsai) over MCP, cutting Claude Code / Antigravity token spend by 90%+ — a verified 93.8% session KV-cache hit over 78 days.',
+    'Castor pairs your cloud lead architect with a local 27B model (Qwen3.8-27B or Ternary-Bonsai) over MCP, cutting Claude Code / Antigravity token spend: 93.8% of the 78-day session prompt tokens were reused from VRAM KV cache, and the counterfactual cloud bill was reduced by 99.83%.',
 };
 
 const jsonLd = [breadcrumb, techArticle, faqPage];
 
-/* 60-second setup commands (mirrors QuickstartFooter) */
+/* Setup commands (mirrors QuickstartFooter) */
 const commands: Array<{ comment: string; cmd: string }> = [
   {
     comment: '# 1. Install & register MCP tools with Claude Code / Antigravity',
@@ -93,8 +93,8 @@ const commands: Array<{ comment: string; cmd: string }> = [
 ---
 
 <Layout
-  title="Cut Claude Code & Antigravity Token Costs by 90%+ with a Local GPU | Castor MCP"
-  description="Keep Claude Opus 5.5 / Claude Sonnet 5.5 / Gemini 4 Argon / GPT-6.2 Astra as your lead architect, and let Castor run the file-exploration loop on a local Qwen3.8-27B or Ternary-Bonsai GPU model. Verified 93.8% session KV-cache hit over 78 days, 70.4 tok/s single-stream decode, 60-second MCP setup, and $0.00 per local token."
+  title="Cut Claude Code & Antigravity Token Costs with a Local GPU | Castor MCP"
+  description="Keep Claude Opus 5.5 / Claude Sonnet 5.5 / Gemini 4 Argon / GPT-6.2 Astra as your lead architect, and let Castor run the file-exploration loop on a local Qwen3.8-27B or Ternary-Bonsai GPU model. 93.8% of the 78-day session prompt tokens served from VRAM KV cache, 70.4 tok/s single-stream decode, and $0.00 per local token."
   canonicalPath="/claude-code-local-llm/"
   jsonLd={jsonLd}
 >
@@ -110,7 +110,7 @@ const commands: Array<{ comment: string; cmd: string }> = [
           class="mt-4 font-display text-[clamp(1.9rem,3.4vw,3rem)] font-bold leading-[1.02] tracking-[-0.035em] text-ink"
         >
           Cut Claude Code &amp; Antigravity Token Costs
-          <span class="text-local">by 90%+ — With a Local GPU.</span>
+          <span class="text-local">With a Local GPU.</span>
         </h1>
         <p class="mt-4 max-w-2xl font-sans text-[15px] leading-relaxed text-ink-secondary sm:text-base">
           The pattern: your <b>cloud lead architect</b> (Claude Opus 5.5,
@@ -154,24 +154,24 @@ const commands: Array<{ comment: string; cmd: string }> = [
       </div>
     </section>
 
-    <!-- ── 60-second setup ────────────────────────────────────────────── -->
+    <!-- ── Setup ────────────────────────────────────────────────────── -->
     <section id="setup" class="scroll-mt-16 border-y border-hairline bg-recessed/40">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
           <div class="folio-bar">
             <span class="folio-coord">
-              Wing 01 · cloud + local hybrid · sixty-second setup
+              Wing 01 · cloud + local hybrid · setup
             </span>
             <span class="folio-index">01 / 03</span>
           </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
-            Three Commands. Zero Codebase Changes.
+            Install Castor as an MCP Server
           </h2>
           <p class="mt-3 max-w-2xl font-sans text-sm leading-relaxed text-ink-secondary">
             Castor registers as a stdio MCP server with your existing client
             (Claude Code, Antigravity, Cursor, or a custom host). If you
             already run a local engine (vLLM, llama.cpp, SGLang, Ollama,
-            LM Studio), point the status probe at it and you're live.
+            LM Studio), point the status probe at it and you are ready to go.
           </p>
         </header>
 
@@ -257,8 +257,8 @@ const commands: Array<{ comment: string; cmd: string }> = [
             </p>
             <p class="mt-3 font-mono text-[12px] leading-relaxed text-ink-secondary">
               Multi-turn sessions reuse prior conversation and tool-call
-              history from the KV pool. Live scrape: 93.8% KV-cache hit,
-              70.5% MTP draft acceptance, 3.45-token mean acceptance length.
+              history from the KV pool. Snapshot (2026-11-21): 93.8% KV-cache
+              hit, 70.5% MTP draft acceptance, 3.45-token mean acceptance length.
             </p>
           </div>
           <div class="bg-surface p-6">
@@ -314,12 +314,12 @@ const commands: Array<{ comment: string; cmd: string }> = [
         <header>
           <div class="folio-bar">
             <span class="folio-coord">
-              Turnkey Team Setup &amp; Agent Plumbing · developer faq
+              two-tier routing &amp; agent plumbing · developer faq
             </span>
             <span class="folio-index">03 / 03</span>
           </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
-            Six Questions, Answered Straight
+            Developer Questions
           </h2>
         </header>
 

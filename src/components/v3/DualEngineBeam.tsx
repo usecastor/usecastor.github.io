@@ -6,9 +6,6 @@
  * Trace — a 3-row horizontal timeline comparing cloud, hybrid, and
  * 100%-local execution of the exact same task (click any row to inspect
  * its breakdown) — three editorial columns, and a 4-stat proof strip.
- *
- * Zero scroll hijacking — the section paints at full opacity from first
- * frame, and the active row swap is pure DOM inside a fixed chassis.
  */
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion, useInView } from 'motion/react';
@@ -65,34 +62,34 @@ const ROWS: RowDef[] = [
     name: 'Standard Cloud Agent',
     wing: 'Claude Code / Cursor alone',
     turns: CLOUD_TURNS,
-    badge: '40 cloud API turns · 1.42M billed tokens · $1.85 / task',
+    badge: '40 cloud API turns · 1.42M input + 18K output · $3.02 / task',
     caption:
       'Every file read, search, edit, and test run re-bills your growing session history in the cloud.',
     breakdown: [
       { label: 'Turn 1', value: '6.4K input tokens billed' },
       { label: 'Turn 40', value: '36.1K input tokens billed' },
-      { label: 'Total billed', value: '1.42M tokens · $1.85' },
+      { label: 'Total billed (Sonnet 5.5)', value: '1.42M in · 18K out · $3.02' },
       { label: 'Session history', value: 'compounds every turn, re-sent' },
     ],
     detail:
-      'Each turn re-sends the full prior conversation. By turn 40 every file read, search, edit, and test run is paid for again — 1.42M billed tokens for one task.',
+      'Each turn re-sends the full prior conversation. By turn 40 every file read, search, edit, and test run is paid for again — 1.42M input and 18K output tokens at Claude Sonnet 5.5 rates ($2/$10 per 1M) for one task.',
   },
   {
     key: 'hybrid',
     name: 'Wing 01: Cloud + Local Hybrid',
     wing: 'Frontier Lead + Local GPU Worker',
     turns: HYBRID_TURNS,
-    badge: '1 cloud turn + 39 local GPU turns · $0.0014 power · 98% saved',
+    badge: '1 cloud turn + 39 local GPU turns · ~$0.01 total · 99.6% saved',
     caption:
       'Your frontier model plans once. Your local GPU executes the 39 file, AST, and test turns at $0/token.',
     breakdown: [
-      { label: 'Turn 1 (cloud)', value: '320-token brief, billed once' },
+      { label: 'Turn 1 (cloud)', value: '~3.2K tokens ≈ $0.01' },
       { label: 'Turns 2–40 (local)', value: '260 tok/s (n=4) on your GPU' },
       { label: 'Session KV cache', value: '93.8% hit across the loop' },
-      { label: 'Total cost', value: '$0.0014 power · 98% under cloud' },
+      { label: 'Total cost', value: '~$0.01 · 99.6% under cloud' },
     ],
     detail:
-      'The frontier model issues one 320-token brief. The remaining 39 file, AST, and test turns execute on your local GPU, reusing the session KV cache at a 93.8% hit — power cost, not tokens billed.',
+      'The frontier model issues one ~3.2K-token planning brief (≈$0.01). The remaining 39 file, AST, and test turns execute on your local GPU at ~$0.0014 electricity each, reusing the session KV cache at a 93.8% hit — power cost, not tokens billed.',
   },
   {
     key: 'airgap',
@@ -269,9 +266,9 @@ const SPECS: Array<{ tag: string; title: string; body: string }> = [
     body: 'Zero cloud dependencies, compile-time offline binary, and 5-layer OS sandboxing for sensitive repositories.',
   },
   {
-    tag: '03 / Turnkey Team Setup & Plumbing',
-    title: 'Wired in 48 hours',
-    body: 'We size your GPUs, configure vLLM continuous batching (260 tok/s n=4), and wire your team\u2019s workflow in 48 hours.',
+    tag: '03 / Turnkey Setup & Plumbing',
+    title: '48-hour GPU & vLLM setup',
+    body: 'We size your GPUs for the workload, configure vLLM 0.33.0 continuous batching and prefix caching, and wire your team\u2019s workflow in 48 hours.',
   },
 ];
 
@@ -315,10 +312,10 @@ interface ProofStat {
 
 const PROOF: ProofStat[] = [
   {
-    value: LEDGER_76DAY.peakCachedPrefillTps,
+    value: LEDGER_76DAY.effectivePrefillTps,
     suffix: ' tok/s',
     format: { useGrouping: true, maximumFractionDigits: 0 },
-    label: 'cached prefill',
+    label: 'effective prefill',
   },
   {
     value: LEDGER_76DAY.concurrentN4DecodeTps,
@@ -333,11 +330,11 @@ const PROOF: ProofStat[] = [
     label: 'session KV cache hit',
   },
   {
-    value: 10.12,
+    value: LEDGER_76DAY.electricityUsd,
     prefix: '$',
     format: { minimumFractionDigits: 2, maximumFractionDigits: 2 },
     label: 'local power cost',
-    sub: 'vs $6,044.48 cloud API',
+    sub: `vs ${LEDGER_76DAY.cloudCounterfactualUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} cloud API`,
     amber: true,
   },
 ];

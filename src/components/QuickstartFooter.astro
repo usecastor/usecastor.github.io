@@ -4,7 +4,7 @@
  * Footer. The terminal sits starkly on the warm paper ground as a machined
  * dark chassis; the footer is pure Swiss Industrial Paper on --bg-ground
  * with a 1px top hairline. Copy buttons are real clipboard writes with
- * visible inline feedback — zero deprecated execCommand, zero CS4012 labels.
+ * visible inline feedback.
  */
 import { ARCHITECTURE } from '../data/telemetry';
 
@@ -164,7 +164,7 @@ const diveLinks = [
           Castor · Hybrid &amp; Local GPU Infrastructure for AI Coding Agents
         </p>
         <p class="mt-0.5 font-mono text-[11px] tracking-tight text-ink-muted">
-          Open Core + Team Setup &amp; Plumbing · v1.5.0 · GNU AGPL-3.0
+          AGPL-3.0 Open Source + Commercial Dual-License · v1.5.0
         </p>
       </div>
     </div>
@@ -187,9 +187,8 @@ const diveLinks = [
 </footer>
 
 <script>
-  // Real clipboard writes, real inline feedback. No modals, no fake success,
-  // and no deprecated clipboard path: on non-secure contexts the button
-  // reports the manual-copy fallback instead.
+  // Real clipboard writes, real inline feedback. On non-secure contexts the
+  // button reports the manual-copy fallback instead.
   function writeClipboard(text: string): Promise<boolean> {
     if (navigator.clipboard?.writeText) {
       return navigator.clipboard.writeText(text).then(() => true, () => false);

@@ -6,11 +6,12 @@
  *
  * Calibration — all values from the 78-day Castor ledger (Sep 4 – Nov 21, 2026):
  *  - Agentic token mix: 97.7% prompt / 2.3% output tokens.
- *  - Cloud cache: the "Real Agentic" profile pays 30% of the prompt rate
- *    for the 70%-discounted cached portion (no inflated cloud bills).
+ *  - Cloud cache: the "Real Agentic" profile pays 10% of the prompt rate
+ *    for the 90%-discounted cached portion (the standard Anthropic /
+ *    OpenAI prompt-cache read discount).
  *  - Local energy: 52.1 kWh per 2.62B tokens ≈ 19.89 kWh / 1B tokens
  *    at ~250 W sustained on an RTX 3090.
- *  - Hardware: $850 used RTX 3090 per 4-engineer node.
+ *  - Hardware: ~$1,400 used RTX 3090 per 4-engineer node.
  */
 
 import type { CloudModel } from '../data/telemetry';
@@ -19,9 +20,9 @@ import type { CloudModel } from '../data/telemetry';
 
 export const PROMPT_SHARE = 0.977;
 export const OUTPUT_SHARE = 0.023;
-export const CACHED_PROMPT_PAY_FRACTION = 0.3; // 70% cache discount → pay 30%
+export const CACHED_PROMPT_PAY_FRACTION = 0.1; // 90% cache discount → pay 10%
 export const KWH_PER_1B_TOKENS = 19.89;
-export const USED_RTX3090_USD = 850;
+export const USED_RTX3090_USD = 1400;
 export const ENGINEERS_PER_NODE = 4;
 
 /* ── Types ──────────────────────────────────────────────────────────── */
@@ -32,7 +33,7 @@ export interface CalcInputs {
   tokensPerEngineerM: number; // 20–500M tokens / month / engineer
   localOffloadPct: number; // 50–95%
   electricityRate: number; // $/kWh
-  useRealAgenticCache: boolean; // true = 70% cached-prompt discount
+  useRealAgenticCache: boolean; // true = 90% cached-prompt discount
 }
 
 export interface CalcOutputs {

@@ -45,7 +45,7 @@ website/
     │   ├── tokens.css        # Obsidian Hardware Instrument Chassis design tokens
     │   └── global.css        # Tailwind v4 @theme bindings, .spec-grid, .tactile-btn, .folio-bar, .machined-card, reduced-motion
     ├── data/
-    │   └── telemetry.ts      # 100% verified Nov 21 2026 ground-truth constants (78-day ledger, hardware, VRAM tiers, cloud pricing, architecture, positioning fronts)
+    │   └── telemetry.ts      # measured Nov 21 2026 ground-truth constants (78-day ledger, hardware, VRAM tiers, cloud pricing, architecture, positioning fronts)
     ├── layouts/
     │   └── Layout.astro      # meta/OG tags, favicon, Fontsource weights, pre-paint theme restore, JSON-LD graph, theme-change broadcast
     ├── components/

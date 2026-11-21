@@ -9,8 +9,6 @@
  * formatted project brief to the clipboard or launches a pre-filled email.
  * The email CTA is dynamically enriched from the SavingsInstrument's
  * `castor:economics-update` event so it carries the visitor's numbers.
- *
- * Zero scroll hijacking, zero stuck opacity.
  */
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
@@ -73,7 +71,7 @@ const FRONTS: FrontDef[] = [
     num: 'Front 02',
     title: 'Turnkey GPU & vLLM Setup',
     price: '$1,500 · 48-Hour Sprint',
-    summary: 'GPU sizing through 260 tok/s, in 48 hours.',
+    summary: 'GPU sizing & vLLM setup in 48 hours.',
     bullets: [
       'Hardware & W4A16 quantization sizing',
       'vLLM continuous batching, n=4',
@@ -102,7 +100,7 @@ const FRONTS: FrontDef[] = [
     bullets: [
       '100% local, zero-egress deployment',
       '5-layer OS sandbox, audit ledger',
-      'SOC 2, ISO 27001 evidence',
+      'Audit logs designed for NIST 800-171 / CMMC L2',
     ],
   },
 ];
@@ -503,7 +501,7 @@ export default function DeployDeck() {
                       href={`mailto:${EMAIL_ADDR}?subject=${encodeURIComponent(
                         'Castor — 48h GPU & vLLM Setup Sprint',
                       )}&body=${encodeURIComponent(
-                        `Hi — I want the 48h turnkey sprint: hardware sizing, vLLM continuous batching (260 tok/s at n=4), prefix-cache pinning, and team routing for Claude Code / Cursor.\n\n${workloadBlock}Stack:\nSeats:`,
+                        `Hi — I want the 48h turnkey sprint: hardware sizing, vLLM continuous batching (260 tok/s at n=4 on 24GB+ GPUs), prefix-cache pinning, and team routing for Claude Code / Cursor.\n\n${workloadBlock}Stack:\nSeats:`,
                       )}`}
                       className="flex h-11 w-full items-center justify-center rounded-md border border-black/20 bg-white px-4 font-mono text-[12.5px] font-semibold text-[#0E1117] transition-colors hover:border-[#101319]"
                     >
