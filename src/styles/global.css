@@ -376,17 +376,17 @@ code ::selection,
   }
 }
 
-/* ── Flagship theater rim: luminous Cobalt→Amber conic light sweep ───
-   GPU-only: animates `transform: rotate()` on a 200%-sized ::before ring
-   that is masked to a 2px border. `border-beam` rotates the gradient one
-   full revolution; nothing here touches layout, scroll, or paint-heavy
-   properties, so it stays on the compositor thread. */
-@keyframes border-beam {
-  from {
-    transform: rotate(0deg);
+/* ── Live LLM streaming cursor blink (used by the Hero streaming
+   window): an opaque → transparent opacity step so the `▋` writing
+   head pulses like a terminal caret. */
+@keyframes cursor-blink {
+  0%,
+  55% {
+    opacity: 1;
   }
-  to {
-    transform: rotate(360deg);
+  56%,
+  100% {
+    opacity: 0;
   }
 }
 

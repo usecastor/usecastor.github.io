@@ -1,25 +1,21 @@
 // @client
 /**
  * ACT 1 — HeroCinema.
- * Full-bleed #05070B dark-silicon stage: a deterministic HTML5 canvas
- * topology-survey background (low-alpha isometric grid + a soft
- * amber/cobalt wavefront scan band, rAF paused off-screen, static under
- * `prefers-reduced-motion`), a fixed-height single-view SSE velocity &
- * concurrency streamer (n=4 parallel streams · 260 tok/s aggregate, or
- * n=1 single stream · 70.4 tok/s — zero layout shift), and the liquid
+ * Full-bleed #05070B dark-silicon stage: a completely STATIC background
+ * (subtle CSS grid + radial vignette — nothing spins, sweeps, or animates
+ * behind the instrument), a fixed-height DOM-based LLM streaming window
+ * that renders real words / tokens / lines / paragraphs / tool calls
+ * token-by-token from top to bottom with a live amber cursor `▋`
+ * (n=4 · 2×2 split-terminal grid at 260 tok/s aggregate, or n=1 single
+ * stream at 70.4 tok/s — zero layout shift, 360px stage), and the liquid
  * client installer with the page's single solid-amber primary button.
  *
  * Zero scroll hijacking, zero stuck opacity — the hero paints at full
  * visibility from the first frame, and every initial value is
  * deterministic (identical SSR and first-client render, no #418).
  */
-import { useEffect, useRef, useState } from 'react';
-import {
-  motion,
-  useMotionTemplate,
-  useMotionValue,
-  useReducedMotion,
-} from 'motion/react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { motion, useMotionTemplate, useMotionValue, useReducedMotion } from 'motion/react';
 import { NumberFlowGroup } from '@number-flow/react';
 import SafeNumberFlow from './SafeNumberFlow';
 import { Check, Copy, Pause, Play } from 'lucide-react';
@@ -31,179 +27,6 @@ function writeClipboard(text: string): void {
   void navigator.clipboard?.writeText(text).catch(() => {
     /* non-secure context — feedback still shown */
   });
-}
-
-/* ── TopologySurveyCanvas — deterministic wireframe wave survey ─────────
- * Low-alpha isometric grid lines with a soft amber/cobalt wavefront scan
- * band sweeping across (inspired by Meng To's `scroll-mesh-survey`).
- *   · rAF pauses via IntersectionObserver when the hero leaves the view
- *   · devicePixelRatio clamped to 1.6 (retina without over-rasterizing)
- *   · `prefers-reduced-motion: reduce` → one static render, no loop
- * Canvas only exists after mount (client-only), so there is zero SSR/
- * hydration divergence — the element is painted empty by the CSS mesh.
- */
-
-const SURVEY_DPR_MAX = 1.6;
-const WAVE_PERIOD_S = 9;
-const GRID_STEP = 44;
-
-interface SurveyState {
-  w: number;
-  h: number;
-  running: boolean;
-  reduced: boolean;
-  t0: number;
-  elapsed: number;
-}
-
-function renderSurvey(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  t: number,
-): void {
-  ctx.clearRect(0, 0, w, h);
-
-  /* Isometric diamond lattice: two diagonal families at ±26.57°
-     (3:4 slope) — low-alpha, gently modulated by the scan phase. */
-  const phase = (t * 0.06) % (Math.PI * 2);
-  ctx.lineWidth = 1;
-  for (const slope of [1, -1]) {
-    let i = 0;
-    const span = w + h;
-    for (let c = -span; c < span; c += GRID_STEP) {
-      i += 1;
-      const a = 0.028 + 0.017 * (0.5 + 0.5 * Math.sin(phase + i * 0.7));
-      ctx.strokeStyle = `rgba(148, 180, 220, ${a.toFixed(3)})`;
-      ctx.beginPath();
-      const k = (c * 3) / 4;
-      if (slope > 0) {
-        ctx.moveTo(0, Math.max(0, k));
-        ctx.lineTo(Math.min(w, w - k), Math.min(h, h - k));
-      } else {
-        ctx.moveTo(0, Math.min(h, h - k));
-        ctx.lineTo(Math.min(w, w - k), Math.max(0, k));
-      }
-      ctx.stroke();
-    }
-  }
-
-  /* Wavefront scan band: a soft vertical sweep, amber core fading into
-     cobalt shoulders, traveling left→right over WAVE_PERIOD_S. */
-  const x = ((t % WAVE_PERIOD_S) / WAVE_PERIOD_S) * (w + 520) - 260;
-  const g = ctx.createLinearGradient(x - 260, 0, x + 260, 0);
-  g.addColorStop(0, 'rgba(59,130,246,0)');
-  g.addColorStop(0.42, 'rgba(59,130,246,0.07)');
-  g.addColorStop(0.5, 'rgba(249,115,22,0.13)');
-  g.addColorStop(0.58, 'rgba(59,130,246,0.07)');
-  g.addColorStop(1, 'rgba(59,130,246,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-}
-
-function TopologySurveyCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const reduced = window.matchMedia?.(
-      '(prefers-reduced-motion: reduce)',
-    )?.matches ?? false;
-    const dpr = Math.min(window.devicePixelRatio || 1, SURVEY_DPR_MAX);
-
-    const s: SurveyState = {
-      w: 0,
-      h: 0,
-      running: !reduced,
-      reduced,
-      t0: performance.now(),
-      elapsed: 3.2, // deterministic mid-sweep opening frame
-    };
-
-    const size = () => {
-      const r = wrap.getBoundingClientRect();
-      s.w = Math.max(1, Math.round(r.width));
-      s.h = Math.max(1, Math.round(r.height));
-      canvas.width = Math.round(s.w * dpr);
-      canvas.height = Math.round(s.h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    size();
-
-    /* Defensive: if the first measurement landed on an un-laid-out
-       (zero-size) wrapper, re-size on the next paint so the canvas
-       never stays at the browser-default 300×150. */
-    if (s.w < 2 || s.h < 2) {
-      requestAnimationFrame(() => {
-        size();
-        if (s.reduced) staticRender();
-      });
-    }
-
-    let raf = 0;
-    let io: IntersectionObserver | undefined;
-
-    const frame = (now: number) => {
-      if (!s.running) return;
-      s.elapsed = (now - s.t0) / 1000;
-      renderSurvey(ctx, s.w, s.h, s.elapsed);
-      raf = requestAnimationFrame(frame);
-    };
-
-    const staticRender = () => {
-      renderSurvey(ctx, s.w, s.h, s.elapsed);
-    };
-
-    if (reduced) {
-      // Reduced motion: a single deterministic static render.
-      staticRender();
-    } else if (typeof IntersectionObserver !== 'undefined') {
-      io = new IntersectionObserver(
-        (entries) => {
-          for (const e of entries) {
-            const inView = e.isIntersecting;
-            if (inView && !s.running) {
-              s.running = true;
-              s.t0 = performance.now() - s.elapsed * 1000;
-              raf = requestAnimationFrame(frame);
-            } else if (!inView && s.running) {
-              s.running = false;
-              cancelAnimationFrame(raf);
-            }
-          }
-        },
-        { threshold: 0.01 },
-      );
-      io.observe(wrap);
-      raf = requestAnimationFrame(frame);
-    } else {
-      raf = requestAnimationFrame(frame);
-    }
-
-    const ro = new ResizeObserver(() => {
-      size();
-      if (reduced) staticRender();
-    });
-    ro.observe(wrap);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      io?.disconnect();
-      ro.disconnect();
-    };
-  }, []);
-
-  return (
-    <div ref={wrapRef} className="absolute inset-0" aria-hidden="true">
-      <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full opacity-55" />
-    </div>
-  );
 }
 
 /* ── Liquid client installer ───────────────────────────────────────────
@@ -278,8 +101,8 @@ function InstallerBar() {
       {/* Glass-obsidian CLI bar — same w-full max-w-3xl container.
           Command never wraps: nowrap + horizontal scroll inside; 11px on
           mobile so `--client all` always fits without clipping. */}
-      <div className="w-full max-w-3xl mx-auto mt-3 flex min-w-0 items-center gap-3 rounded-lg border border-white/12 bg-black/60 px-4 py-3 backdrop-blur-md">
-        <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded font-mono text-[11px] leading-relaxed text-[#D7DEE9] sm:text-[13.5px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mx-auto mt-3 flex min-w-0 w-full max-w-3xl items-center gap-3 rounded-lg border border-white/12 bg-black/60 px-4 py-3 backdrop-blur-md">
+        <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded font-mono text-[11px] leading-relaxed text-[#D7DEE9] [scrollbar-width:none] sm:text-[13.5px] [&::-webkit-scrollbar]:hidden">
           <span className="text-[#FB923C]">$ </span>
           {active.cmd}
         </code>
@@ -319,311 +142,353 @@ function InstallerBar() {
   );
 }
 
-/* ── SSE Velocity & Concurrency Streamer ───────────────────────────────
- * A calm, visceral, SINGLE-view streaming instrument. Strictly fixed
- * height (h-[340px] inner stage) with zero layout shift: every dynamic
- * value is pre-laid-out text or canvas pixels, and mode switches
- * (n=4 ↔ n=1) only change what is drawn — never the box.
+/* ── Authentic LLM token-by-token streamer ─────────────────────────────
+ * A fixed-height (360px) DOM "terminal" that streams REAL readable words,
+ * tokens, lines, paragraphs, and tool calls token-by-token / line-by-line
+ * from top to bottom with a live amber cursor `▋` at the writing head —
+ * exactly like Claude Code / Cursor / ChatGPT streaming a response.
  *
- *   n=4 (default): 4 parallel lanes streaming simultaneously from the
- *                  session KV cache — ~65–70 tok/s per lane =
- *                  260 tok/s aggregate (the proven n=4 figure).
- *   n=1:           one expanded lane, 4 sequential SSE lines, 70.4 tok/s.
+ *   n=1: one expanded stream · 70.4 tok/s · 284 tokens per turn.
+ *   n=4: 2×2 split-terminal grid · 4 concurrent workers · ~65 tok/s each
+ *        · 260 tok/s aggregate from the shared session KV cache.
  *
- * All readouts are deterministic and never start at 0.
+ * Zero layout shift: the stage is strictly `h-[360px]`, every word is
+ * pre-mounted (revealed via opacity so it is already laid out), and only
+ * a per-pane inner body scrolls. Under `prefers-reduced-motion` the
+ * full output is rendered statically with no loop.
  */
 
-const LANE_TOKENS_PER_S = 65; // per-lane stream rate; 4 lanes ⇒ 260 aggregate
-const BATCH_TOKENS = 320; // tokens per slice batch before the completion pulse
-const PAUSE_AFTER_MS = 700;
-const N4_PROGRESS0 = 0.62; // deterministic staggered opening frame
+type LineKind =
+  | 'prompt'
+  | 'tool'
+  | 'para'
+  | 'code'
+  | 'diff'
+  | 'test'
+  | 'close';
 
-const SLICES: Array<{ id: string; name: string; note: string }> = [
+interface StreamLine {
+  kind: LineKind;
+  text: string;
+}
+
+interface PaneSpec {
+  worker: string;
+  file: string;
+  rate: number; // tok/s shown in the pane header
+  totalTokens: number; // counter lands exactly here when the pane completes
+  startOffsetS: number; // deterministic stagger between the 4 workers
+  lines: StreamLine[];
+}
+
+const N1_TOTAL = 284; // single-stream turn length (0 → 284 tokens)
+const N1_RATE = LEDGER_76DAY.sustainedDecodeTps; // 70.4 tok/s
+const N4_RATE = LEDGER_76DAY.concurrentN4DecodeTps; // 260 tok/s aggregate
+const WORD_INTERVAL_S = 0.18; // ~11 words/sec writing cadence (readable)
+const PAUSE_AFTER_S = 2.2; // hold the finished output so it can be read
+const STAGE_H = 360; // fixed inner stage height — never shifts
+
+const N1_LINES: StreamLine[] = [
+  { kind: 'prompt', text: '> Fix token refresh race condition in src/auth/refresh.rs and run auth test suite' },
+  { kind: 'tool', text: '● read_file src/auth/refresh.rs (412 lines · 93.8% session KV cache hit · 0ms)' },
+  { kind: 'para', text: 'Concurrent refresh calls race on rotation_lock when two client requests arrive within the same 30-second grace window. Adding an idempotency check before minting a new token pair:' },
+  { kind: 'code', text: 'pub async fn rotate_refresh_token(&self, token_id: Uuid) -> Result<TokenPair, AuthError> {' },
+  { kind: 'code', text: 'let guard = self.rotation_lock.lock().await;' },
+  { kind: 'diff', text: 'if guard.rotated_within(Duration::from_secs(30)) {' },
+  { kind: 'diff', text: 'return Ok(guard.cached_pair().clone());' },
+  { kind: 'diff', text: '}' },
+  { kind: 'code', text: 'self.mint_and_persist_pair(token_id).await' },
+  { kind: 'code', text: '}' },
+  { kind: 'test', text: '● bash cargo test --package auth — 14 passed in 0.41s (exit 0)' },
+  { kind: 'close', text: 'Done. All 14 auth tests pass with zero network egress and $0.0000 token cost.' },
+];
+
+const N4_PANES: PaneSpec[] = [
   {
-    id: 'slice/01',
-    name: 'auth-session-guard',
-    note: 'Scanning 18 files & patching token rotation',
+    worker: 'worker-01',
+    file: 'src/auth/refresh.rs',
+    rate: 66.2,
+    totalTokens: 58,
+    startOffsetS: 0,
+    lines: [
+      { kind: 'para', text: 'Two clients hit rotate within one 30s grace window and raced on rotation_lock.' },
+      { kind: 'para', text: 'Adding an idempotency guard before minting a fresh token pair:' },
+      { kind: 'diff', text: 'if guard.rotated_within(Duration::from_secs(30)) {' },
+      { kind: 'diff', text: 'return Ok(guard.cached_pair().clone());' },
+      { kind: 'diff', text: '}' },
+      { kind: 'test', text: '✓ cargo test auth (14 passed)' },
+    ],
   },
   {
-    id: 'slice/02',
-    name: 'api-rate-limiter',
-    note: 'Updating concurrency semaphore & retry window',
+    worker: 'worker-02',
+    file: 'src/api/rate_limit.rs',
+    rate: 64.8,
+    totalTokens: 56,
+    startOffsetS: 0.12,
+    lines: [
+      { kind: 'para', text: 'A 100 rps burst drained the whole budget in a single tick.' },
+      { kind: 'para', text: 'Replacing the fixed refill with a sliding-window token bucket:' },
+      { kind: 'diff', text: 'let now = Instant::now();' },
+      { kind: 'diff', text: 'self.window.retain(|t| now.duration_since(*t) < WINDOW);' },
+      { kind: 'diff', text: 'let free = self.capacity.saturating_sub(self.window.len());' },
+      { kind: 'test', text: '✓ cargo test rate_limit (9 passed)' },
+    ],
   },
   {
-    id: 'slice/03',
-    name: 'schema-migration',
-    note: 'Verifying SQL invariants across 12 tables',
+    worker: 'worker-03',
+    file: 'src/db/pool.rs',
+    rate: 65.1,
+    totalTokens: 54,
+    startOffsetS: 0.24,
+    lines: [
+      { kind: 'para', text: 'Idle connections held VRAM for 12 minutes past their TTL.' },
+      { kind: 'para', text: 'Adding a hard idle-timeout guard before reuse:' },
+      { kind: 'diff', text: 'if conn.idle_for() > IDLE_TTL {' },
+      { kind: 'diff', text: 'self.drain(conn.id).await?;' },
+      { kind: 'diff', text: 'continue;' },
+      { kind: 'test', text: '✓ cargo test db_pool (11 passed)' },
+    ],
   },
   {
-    id: 'slice/04',
-    name: 'sandbox-verifier',
-    note: 'Running 42 unit tests in zero-egress sandbox',
+    worker: 'worker-04',
+    file: 'src/sandbox/policy.rs',
+    rate: 63.9,
+    totalTokens: 52,
+    startOffsetS: 0.36,
+    lines: [
+      { kind: 'para', text: 'The egress audit found raw socket() calls bypassing the proxy.' },
+      { kind: 'para', text: 'Tightening the zero-egress rule to deny outbound connects:' },
+      { kind: 'diff', text: 'Rule::deny("socket",' },
+      { kind: 'diff', text: 'SocketFlags::CONNECT | SocketFlags::SEND,' },
+      { kind: 'diff', text: '),' },
+      { kind: 'test', text: '✓ cargo test sandbox (22 passed)' },
+    ],
   },
 ];
 
-const STREAMER_H = 340; // fixed inner stage height — no layout shift ever
-
-interface StreamerLane {
-  progress: number; // tokens emitted this batch
-  doneMs: number; // >0 → completion pulse active (ms elapsed)
-  pausedMs: number; // hold before cycling to the next batch
+interface ComputedLine {
+  kind: LineKind;
+  words: string[];
+  starts: number[]; // wordStart[i] = token index where word i begins
+  wordEnd: number; // total word count for the line
 }
 
-function newLane(progress: number): StreamerLane {
-  return { progress, doneMs: 0, pausedMs: 0 };
+interface ComputedPane {
+  worker: string;
+  file: string;
+  rate: number;
+  totalTokens: number;
+  startOffsetS: number;
+  lines: ComputedLine[];
+  totalWords: number;
+  lastLine: number; // index of the final line
 }
 
-function StreamerCanvas({
-  mode,
-  running,
-  lanesRef,
+function buildPane(p: PaneSpec): ComputedPane {
+  let acc = 0;
+  let wordTotal = 0;
+  const lines: ComputedLine[] = p.lines.map((l) => {
+    const words = l.text.split(/\s+/).filter(Boolean);
+    const starts = words.map(() => acc);
+    acc += words.length;
+    wordTotal += words.length;
+    return { kind: l.kind, words, starts, wordEnd: words.length };
+  });
+  return {
+    worker: p.worker,
+    file: p.file,
+    rate: p.rate,
+    totalTokens: p.totalTokens,
+    startOffsetS: p.startOffsetS,
+    lines,
+    totalWords: wordTotal,
+    lastLine: p.lines.length - 1,
+  };
+}
+
+const SINGLE_PANE: ComputedPane = buildPane({
+  worker: 'worker-01',
+  file: 'src/auth/refresh.rs',
+  rate: N1_RATE,
+  totalTokens: N1_TOTAL,
+  startOffsetS: 0,
+  lines: N1_LINES,
+});
+
+const QUAD_PANES: ComputedPane[] = N4_PANES.map(buildPane);
+
+function lineTextClass(kind: LineKind): string {
+  switch (kind) {
+    case 'prompt':
+      return 'text-[#FB923C]';
+    case 'tool':
+      return 'text-[#8C95A6]';
+    case 'test':
+      return 'text-[#4ADE80]';
+    case 'close':
+      return 'text-[#A3AEBF]';
+    case 'code':
+    case 'diff':
+      return 'text-[#D7DEE9]';
+    default:
+      return 'text-[#D7DEE9]';
+  }
+}
+
+function LineView({
+  line,
+  activeIdx,
+  cursorOn,
 }: {
-  mode: 1 | 4;
-  running: boolean;
-  lanesRef: React.RefObject<StreamerLane[]>;
+  line: ComputedLine;
+  activeIdx: number;
+  cursorOn: boolean;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDiff = line.kind === 'diff';
+  const isTool = line.kind === 'tool';
+  const isTest = line.kind === 'test';
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const parent = canvas.parentElement;
-    if (!parent) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  let cls =
+    'whitespace-pre-wrap break-words font-mono leading-[1.55] ' +
+    lineTextClass(line.kind);
+  if (isDiff) cls = cls + ' bg-[#16281D] pl-[1.15em] text-[#7EDFA0]';
+  if (isTool) cls = cls + ' pl-[0.85em]';
+  if (isTest) cls = cls + ' pl-[0.85em]';
 
-    const reduced = window.matchMedia?.(
-      '(prefers-reduced-motion: reduce)',
-    )?.matches ?? false;
-    const dpr = Math.min(window.devicePixelRatio || 1, SURVEY_DPR_MAX);
+  return (
+    <div className={cls}>
+      {isDiff && <span className="text-[#7EDFA0]">+ </span>}
+      {isTool && (
+        <span className="text-[#8C95A6]">
+          <span className="text-[#7FA6FF]">● </span>
+          {line.words[0]}{' '}
+          <span className="text-[#7FA6FF]">
+            {line.words.slice(1, 4).join(' ')}
+          </span>{' '}
+          <span className="text-[#5D6B80]">
+            {line.words.slice(4).join(' ')}
+          </span>
+        </span>
+      )}
+      {!isTool && (
+        <span>
+          {line.words.map((w, i) => (
+            <span key={i} className={i <= activeIdx ? 'opacity-100' : 'opacity-0'}>
+              {w}
+              {i < line.words.length - 1 ? '\u00A0' : ''}
+            </span>
+          ))}
+        </span>
+      )}
+      {cursorOn && (
+        <span
+          aria-hidden="true"
+          className="ml-[1px] inline-block h-[1.05em] w-[0.55ch] animate-[cursor-blink_1.05s_step-end_infinite] bg-[#F97316] align-baseline translate-y-[0.14em]"
+        >
+          ▋
+        </span>
+      )}
+    </div>
+  );
+}
 
-    const state = { w: 0, h: 0, t: reduced ? 2.4 : 0 };
+function Pane({
+  pane,
+  tokenF,
+  running,
+  wide,
+}: {
+  pane: ComputedPane;
+  tokenF: number; // float tokens written (0..totalTokens)
+  running: boolean;
+  wide: boolean; // n=1 expanded stream
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const done = tokenF >= pane.totalTokens;
 
-    const size = () => {
-      const r = parent.getBoundingClientRect();
-      state.w = Math.max(1, Math.round(r.width));
-      state.h = Math.max(1, Math.round(r.height));
-      canvas.width = Math.round(state.w * dpr);
-      canvas.height = Math.round(state.h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    size();
-
-    /* ── draw helpers ─────────────────────────────────────── */
-
-    const MONO_S = '10px "IBM Plex Mono", ui-monospace, monospace';
-
-    const drawLane = (
-      lane: StreamerLane,
-      x: number,
-      y: number,
-      w: number,
-      h: number,
-      slice: (typeof SLICES)[number],
-      subLine: number,
-    ) => {
-      const frac = Math.min(1, lane.progress / BATCH_TOKENS);
-      const head = Math.floor(lane.progress);
-      const pulse = lane.doneMs > 0 ? 1 - lane.doneMs / PAUSE_AFTER_MS : 0;
-
-      // Row background
-      ctx.fillStyle = 'rgba(11,15,23,0.55)';
-      ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-
-      // Header line: live SSE data packet + lane id + token counter
-      const delta = `${slice.name}#${head}`;
-      ctx.font = MONO_S;
-      ctx.fillStyle = '#3B82F6';
-      ctx.fillText(`data: {"delta": "${delta}"}`, x + 10, y + 16);
-      ctx.fillStyle = lane.doneMs > 0 ? '#FB923C' : '#8C95A6';
-      ctx.fillText(
-        `${slice.id} · ${slice.name}${mode === 1 ? ` · line ${subLine + 1}/4` : ''}`,
-        x + 10,
-        y + 30,
-      );
-      const counter = `${head} tok`;
-      ctx.fillStyle = '#F5F7FA';
-      const cw = ctx.measureText(counter).width;
-      ctx.fillText(counter, x + w - cw - 10, y + 16);
-      if (pulse > 0) {
-        ctx.fillStyle = `rgba(249,115,22,${(0.55 * pulse).toFixed(3)})`;
-        ctx.fillText('✓ done', x + w - ctx.measureText('✓ done').width - 10, y + 30);
-      }
-
-      // Token block row: illuminated blocks stream left→right at proportional
-      // 60fps velocity, cobalt body, amber head, completion pulse wash.
-      const bx = x + 10;
-      const bw = w - 20;
-      const by = y + h - 18;
-      const BLOCK = 9;
-      const GAP = 3;
-      const total = Math.floor(bw / (BLOCK + GAP));
-      const lit = Math.min(total, Math.round(frac * total));
-      for (let i = 0; i < total; i++) {
-        const bxx = bx + i * (BLOCK + GAP);
-        if (i < lit) {
-          const isHead = i === lit - 1 && pulse === 0;
-          ctx.fillStyle = isHead
-            ? 'rgba(249,115,22,0.95)'
-            : pulse > 0
-              ? `rgba(249,115,22,${(0.35 + 0.4 * pulse).toFixed(3)})`
-              : 'rgba(59,130,246,0.55)';
-          ctx.fillRect(bxx, by, BLOCK, 8);
-        } else {
-          ctx.fillStyle = 'rgba(255,255,255,0.07)';
-          ctx.fillRect(bxx, by, BLOCK, 8);
-        }
-      }
-      // Lane note (clipped)
-      ctx.fillStyle = 'rgba(140,149,166,0.9)';
-      ctx.font = MONO_S;
-      const note = slice.note;
-      const maxW = bw - 60;
-      let n2 = note;
-      while (n2.length > 4 && ctx.measureText(n2).width > maxW) {
-        n2 = n2.slice(0, -2);
-      }
-      ctx.fillText(n2 + (n2 !== note ? '…' : ''), bx, by - 4);
-    };
-
-    const render = () => {
-      ctx.clearRect(0, 0, state.w, state.h);
-      const lanes = lanesRef.current;
-      const pad = 8;
-      const innerW = state.w - pad * 2;
-
-      if (mode === 4) {
-        const gap = 8;
-        const laneH = (state.h - pad * 2 - gap * 3) / 4;
-        for (let i = 0; i < 4; i++) {
-          drawLane(
-            lanes[i] ?? newLane(0),
-            pad,
-            pad + i * (laneH + gap),
-            innerW,
-            laneH,
-            SLICES[i],
-            i,
-          );
-        }
-      } else {
-        // n=1: one expanded stream — 4 sequential SSE lines in the same
-        // fixed-height viewport. Earlier lines render as completed (dim,
-        // amber-checked); the active line streams live.
-        const total = lanes[0].progress;
-        const activeLine = Math.min(3, Math.floor(total / BATCH_TOKENS));
-        const gap = 8;
-        const laneH = (state.h - pad * 2 - gap * 3) / 4;
-        for (let i = 0; i < 4; i++) {
-          const done = i < activeLine;
-          const cur = i === activeLine;
-          const lane = done
-            ? newLane(BATCH_TOKENS)
-            : cur
-              ? lanes[0]
-              : newLane(0);
-          drawLane(
-            lane,
-            pad,
-            pad + i * (laneH + gap),
-            innerW,
-            laneH,
-            SLICES[i],
-            i,
-          );
-          if (done) {
-            ctx.fillStyle = 'rgba(5,7,11,0.55)';
-            ctx.fillRect(pad, pad + i * (laneH + gap), innerW, laneH);
-            ctx.font = MONO_S;
-            ctx.fillStyle = 'rgba(249,115,22,0.8)';
-            ctx.fillText(
-              `✓ ${SLICES[i].id} · ${SLICES[i].name} — ${BATCH_TOKENS} tok delivered`,
-              pad + 10,
-              pad + i * (laneH + gap) + 18,
-            );
-          }
-        }
-      }
-    };
-
-    let raf = 0;
-    let last = performance.now();
-
-    const frame = (now: number) => {
-      if (!running) return;
-      const dt = Math.min(0.1, (now - last) / 1000);
-      last = now;
-      const lanes = lanesRef.current;
-      for (let i = 0; i < lanes.length; i++) {
-        const lane = lanes[i];
-        if (mode === 1 && i > 0) continue; // only lane 0 advances in n=1
-        if (lane.doneMs > 0) {
-          lane.doneMs += dt * 1000;
-          if (lane.doneMs >= PAUSE_AFTER_MS) {
-            lane.doneMs = 0;
-            lane.pausedMs = 220 + Math.sin(i * 1.7) * 120; // staggered recycle
-          }
-        } else if (lane.pausedMs > 0) {
-          lane.pausedMs -= dt * 1000;
-          if (lane.pausedMs <= 0) lane.progress = 0; // start next slice batch
-        } else if (mode === 4) {
-          lane.progress += LANE_TOKENS_PER_S * dt;
-          if (lane.progress >= BATCH_TOKENS) {
-            lane.progress = BATCH_TOKENS; // hold the full bar through the pulse
-            lane.doneMs = 1;
-          }
-        } else {
-          // n=1: four sequential lines, then the batch recycles.
-          lane.progress += LANE_TOKENS_PER_S * dt;
-          if (lane.progress >= BATCH_TOKENS * 4) lane.progress = 0;
-        }
-      }
-      state.t += dt;
-      render();
-      raf = requestAnimationFrame(frame);
-    };
-
-    if (reduced) {
-      // Static deterministic frame (never 0 — lanes mid-stream).
-      render();
-    } else {
-      last = performance.now();
-      raf = requestAnimationFrame(frame);
+  // Map float token position → which line is active + how many words shown.
+  let activeLine = 0;
+  let shownInLine = 0;
+  let lineActive = false;
+  for (let li = 0; li < pane.lines.length; li++) {
+    const L = pane.lines[li];
+    if (L.wordEnd === 0) continue;
+    if (!lineActive && tokenF >= L.starts[0] + 1e-4) {
+      activeLine = li;
+      lineActive = true;
+      const inLine = tokenF - L.starts[0];
+      shownInLine = Math.max(0, Math.min(L.wordEnd - 1, Math.floor(inLine)));
     }
+  }
+  // Once the turn is complete, keep the final line fully shown.
+  const shownWords =
+    done && activeLine === pane.lastLine ? pane.lines[pane.lastLine].wordEnd - 1 : shownInLine;
+  const cursorOn = running && !done;
 
-    const ro = new ResizeObserver(() => {
-      size();
-      if (reduced) render();
-    });
-    ro.observe(parent);
+  // Auto-scroll the pane body to the newest line as it grows.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [shownWords, activeLine]);
 
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-    };
-  }, [mode, running, lanesRef]);
+  const counter = Math.min(pane.totalTokens, Math.floor(tokenF));
+  const paneMargin = wide ? 'm-1.5 rounded-lg' : 'm-[1.5px]';
 
-  return <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />;
+  return (
+    <div
+      className={`absolute inset-0 flex min-h-0 flex-col overflow-hidden border border-white/10 bg-[#070B12] ${paneMargin}`}
+    >
+      {/* Pane header (sticky) */}
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-2.5 py-1.5">
+        <p className="min-w-0 truncate font-mono text-[9.5px] leading-tight sm:text-[10px]">
+          <span className="text-[#F97316]">{pane.worker}</span>
+          <span className="text-[#5D6B80]"> · </span>
+          <span className="text-[#A3AEBF]">{pane.file}</span>
+        </p>
+        <p className="shrink-0 font-mono text-[9.5px] tabular-nums sm:text-[10px]">
+          <span className="text-[#F5F7FA]">{counter}</span>
+          <span className="text-[#5D6B80]"> tok · </span>
+          <span className="text-[#7FA6FF]">{pane.rate.toFixed(1)} tok/s</span>
+        </p>
+      </div>
+
+      {/* Pane body: real words / lines / code stream top→bottom here. */}
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 space-y-[3px] overflow-y-auto px-2.5 py-2 text-[10.5px] [scrollbar-width:none] sm:text-[11px] [&::-webkit-scrollbar]:hidden"
+      >
+        {pane.lines.map((L, li) => {
+          if (li < activeLine) {
+            // Completed line above the head → fully visible, no cursor.
+            return <LineView key={li} line={L} activeIdx={L.wordEnd - 1} cursorOn={false} />;
+          }
+          if (li > activeLine) {
+            // Not yet reached → render blank (reserved) so layout is stable.
+            return <div key={li} className="invisible h-[1em]" aria-hidden="true" />;
+          }
+          // Active line → word-by-word reveal + live cursor.
+          return (
+            <LineView key={li} line={L} activeIdx={shownWords} cursorOn={cursorOn} />
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function SSEStreamer() {
-  const reduced = useReducedMotion();
+  const reduced = useReducedMotion() ?? false;
   const [mode, setMode] = useState<1 | 4>(4);
   const [paused, setPaused] = useState(false);
   const [inView, setInView] = useState(true);
   const stageRef = useRef<HTMLDivElement>(null);
 
-  // Deterministic initial state — identical on SSR and first client render:
-  // all lanes mid-stream (0.62 stagger), all readouts at their real values.
-  const lanesRef = useRef<StreamerLane[]>([
-    newLane(N4_PROGRESS0 * BATCH_TOKENS),
-    newLane((N4_PROGRESS0 + 0.08) * BATCH_TOKENS),
-    newLane((N4_PROGRESS0 + 0.16) * BATCH_TOKENS),
-    newLane((N4_PROGRESS0 + 0.24) * BATCH_TOKENS),
-  ]);
+  // One shared stream clock for every pane (staggered per-pane offsets).
+  const [, setTick] = useState(0); // rAF-driven render trigger
+  const clockRef = useRef(0); // seconds since the current turn started
+
+  // Reduced motion: render the full output statically (deterministic).
+  const panes = mode === 1 ? [SINGLE_PANE] : QUAD_PANES;
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return;
@@ -639,27 +504,62 @@ function SSEStreamer() {
     return () => io.disconnect();
   }, []);
 
-  const running = inView && !paused && !(reduced ?? false);
+  const running = inView && !paused && !reduced;
 
-  const aggregateTps =
-    mode === 4 ? LEDGER_76DAY.concurrentN4DecodeTps : LEDGER_76DAY.sustainedDecodeTps;
+  // Deterministic per-mode start clock so SSR & first paint agree (0).
+  useEffect(() => {
+    clockRef.current = 0;
+    setTick((t) => t + 1);
+  }, [mode, running, reduced]);
+
+  useEffect(() => {
+    if (!running) return;
+    let raf = 0;
+    let last = performance.now();
+    const step = (now: number) => {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      clockRef.current += dt;
+      setTick((t) => (t + 1) % 1_000_000);
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [running]);
+
+  // Compute per-pane float token position from the shared clock.
+  const clock = reduced ? Infinity : clockRef.current;
+  const maxTurnWords =
+    mode === 1
+      ? SINGLE_PANE.totalWords
+      : Math.max(
+          ...QUAD_PANES.map((p) => p.totalWords + p.startOffsetS / WORD_INTERVAL_S),
+        );
+  const turnDoneS = maxTurnWords * WORD_INTERVAL_S + PAUSE_AFTER_S;
+
+  // Wrap the turn after it has completed + held for the read pause.
+  const effectiveClock = reduced ? Infinity : clock % turnDoneS;
+
+  const tokenFor = (p: ComputedPane): number => {
+    if (reduced) return p.totalTokens;
+    const local = effectiveClock - p.startOffsetS;
+    if (local <= 0) return 0;
+    const words = local / WORD_INTERVAL_S; // float words written
+    const f = (words / p.totalWords) * p.totalTokens;
+    return Math.max(0, Math.min(p.totalTokens, f));
+  };
+
+  const aggregateTokens = panes.reduce((a, p) => a + tokenFor(p), 0);
+  const aggregateRate = mode === 4 ? N4_RATE : N1_RATE;
 
   return (
-    <div
-      ref={stageRef}
-      className="mx-auto mt-12 w-full min-w-0 max-w-5xl"
-    >
+    <div ref={stageRef} className="mx-auto mt-12 w-full min-w-0 max-w-5xl">
       <div
-        className="rounded-xl p-px"
-        style={{
-          background:
-            'conic-gradient(from 0deg, #3B82F6, #0A0D14 25%, #F97316 50%, #0A0D14 75%, #3B82F6)',
-          animation: reduced ? undefined : 'border-beam 7s linear infinite',
-        }}
         role="figure"
-        aria-label="Castor SSE streaming instrument: n=4 concurrent agent streams from the session KV cache at 260 tokens per second aggregate"
+        aria-label="Castor LLM streaming window: n=4 concurrent agent streams from the session KV cache at 260 tokens per second aggregate, or n=1 single stream at 70.4 tokens per second"
+        className="overflow-hidden rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#0A0D14]"
       >
-        <div className="flex flex-col overflow-hidden rounded-[11px] bg-[#0A0D14]">
+        <div className="flex flex-col">
           {/* ── Top instrument bar ─────────────────────────────────── */}
           <div className="flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-5">
             {/* Session KV cache readout */}
@@ -720,9 +620,26 @@ function SSEStreamer() {
             </span>
           </div>
 
-          {/* ── Center streaming viewport: strictly fixed height ───── */}
-          <div className="relative shrink-0" style={{ height: STREAMER_H }}>
-            <StreamerCanvas mode={mode} running={running} lanesRef={lanesRef} />
+          {/* ── Center streaming window: strictly fixed 360px stage ── */}
+          <div className="relative w-full shrink-0" style={{ height: STAGE_H }}>
+            {mode === 4 ? (
+              <div className="grid h-full w-full grid-cols-1 grid-rows-4 gap-px bg-white/10 sm:grid-cols-2 sm:grid-rows-2">
+                {QUAD_PANES.map((p) => (
+                  <div key={p.worker} className="relative min-h-0" aria-hidden="true">
+                    <Pane pane={p} tokenF={tokenFor(p)} running={running} wide={false} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="h-full w-full">
+                <Pane
+                  pane={SINGLE_PANE}
+                  tokenF={tokenFor(SINGLE_PANE)}
+                  running={running}
+                  wide
+                />
+              </div>
+            )}
           </div>
 
           {/* ── Bottom telemetry & cloud-arbitrage comparison bar ────
@@ -732,15 +649,13 @@ function SSEStreamer() {
             <NumberFlowGroup>
               <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
-                  Cached Prefill
+                  Live Output
                 </p>
-                <SafeNumberFlow
-                  value={LEDGER_76DAY.peakCachedPrefillTps}
-                  format={{ useGrouping: true }}
-                  className="mt-0.5 font-mono text-[14px] font-semibold text-[#F5F7FA] sm:text-[15px]"
-                />
+                <span className="mt-0.5 font-mono text-[14px] font-semibold tabular-nums text-[#F5F7FA] sm:text-[15px]">
+                  {Math.round(aggregateTokens)}
+                </span>
                 <span className="ml-1 font-mono text-[10.5px] text-[#5D6B80]">
-                  tok/s
+                  tokens · {aggregateRate.toFixed(1)} tok/s
                 </span>
               </div>
               <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
@@ -748,7 +663,7 @@ function SSEStreamer() {
                   Decode (n=4 / n=1)
                 </p>
                 <SafeNumberFlow
-                  value={aggregateTps}
+                  value={aggregateRate}
                   format={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
                   className="mt-0.5 font-mono text-[14px] font-semibold text-[#F5F7FA] sm:text-[15px]"
                 />
@@ -778,7 +693,7 @@ function SSEStreamer() {
                   $0.0000
                 </span>
                 <span className="ml-2 font-mono text-[10.5px] text-[#5D6B80]">
-                  <span className="line-through whitespace-nowrap decoration-[#FB923C]/60">
+                  <span className="whitespace-nowrap line-through decoration-[#FB923C]/60">
                     $1.42 cloud
                   </span>
                 </span>
@@ -838,26 +753,17 @@ export default function HeroCinema() {
       className="dark-surface relative -mt-14 min-h-screen w-full min-w-0 max-w-full overflow-x-clip bg-[#05070B] pb-14 pt-10 sm:pt-14"
       onMouseMove={spotlight.onMouseMove}
     >
-      {/* Static CSS mesh fallback — always painted (visible before the
-          canvas hydrates, and in SSR): a dark cobalt+amber radial mesh. */}
+      {/* Completely STATIC background — a subtle CSS grid + a radial
+          vignette. Nothing behind the instrument spins, sweeps, or
+          animates, so the streaming window stays the sole focal point. */}
       <div
         className="absolute inset-0"
         aria-hidden="true"
         style={{
-          background:
-            'radial-gradient(90rem 44rem at 18% 12%, rgba(29,78,216,0.32), transparent 62%), radial-gradient(70rem 38rem at 82% 30%, rgba(234,88,12,0.17), transparent 64%), radial-gradient(52rem 32rem at 50% 92%, rgba(15,37,87,0.5), transparent 70%)',
+          backgroundImage:
+            'radial-gradient(90rem 44rem at 18% 12%, rgba(29,78,216,0.30), transparent 62%), radial-gradient(70rem 38rem at 82% 30%, rgba(234,88,12,0.15), transparent 64%), radial-gradient(52rem 32rem at 50% 92%, rgba(15,37,87,0.5), transparent 70%), linear-gradient(to right, rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.035) 1px, transparent 1px)',
+          backgroundSize: 'auto, auto, auto, 44px 44px, 44px 44px',
         }}
-      />
-
-      {/* Deterministic HTML5 canvas topology wave survey (client-mounted) */}
-      <TopologySurveyCanvas />
-
-      {/* Pointer-tracked radial spotlight */}
-      <motion.div
-        ref={spotlight.ref}
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{ backgroundImage: spotlight.gradient }}
       />
 
       {/* Soft vignette fading smoothly to solid #05070B at the bottom edge */}
