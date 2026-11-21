@@ -7,15 +7,15 @@
  * that renders real words / tokens / lines / paragraphs / tool calls
  * token-by-token from top to bottom with a live amber cursor `▋`
  * (n=4 · 2×2 split-terminal grid at 260 tok/s aggregate, or n=1 single
- * stream at 70.4 tok/s — zero layout shift, 360px stage), and the liquid
- * client installer with the page's single solid-amber primary button.
+ * stream at 70.4 tok/s — 360px stage), and the liquid client installer
+ * with the page's single solid-amber primary button.
  *
  * Zero scroll hijacking, zero stuck opacity — the hero paints at full
  * visibility from the first frame, and every initial value is
  * deterministic (identical SSR and first-client render, no #418).
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { motion, useMotionTemplate, useMotionValue, useReducedMotion } from 'motion/react';
+import { motion, useMotionTemplate, useMotionValue } from 'motion/react';
 import { NumberFlowGroup } from '@number-flow/react';
 import SafeNumberFlow from './SafeNumberFlow';
 import { Check, Copy, Pause, Play } from 'lucide-react';
@@ -142,8 +142,27 @@ function InstallerBar() {
   );
 }
 
+/* ── Reduced-motion hook (hydration-safe) ──────────────────────────────
+ * Initializes to `false` (identical to SSR) and only reads/subscribes to
+ * `window.matchMedia('(prefers-reduced-motion: reduce)')` inside
+ * `useEffect` — so the first client hydration pass can never diverge
+ * from the server render (no React #418).
+ */
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return reduced;
+}
+
 /* ── Authentic LLM token-by-token streamer ─────────────────────────────
- * A fixed-height (360px) DOM "terminal" that streams REAL readable words,
+ * A fixed-height DOM "terminal" that streams REAL readable words,
  * tokens, lines, paragraphs, and tool calls token-by-token / line-by-line
  * from top to bottom with a live amber cursor `▋` at the writing head —
  * exactly like Claude Code / Cursor / ChatGPT streaming a response.
@@ -152,10 +171,10 @@ function InstallerBar() {
  *   n=4: 2×2 split-terminal grid · 4 concurrent workers · ~65 tok/s each
  *        · 260 tok/s aggregate from the shared session KV cache.
  *
- * Zero layout shift: the stage is strictly `h-[360px]`, every word is
- * pre-mounted (revealed via opacity so it is already laid out), and only
- * a per-pane inner body scrolls. Under `prefers-reduced-motion` the
- * full output is rendered statically with no loop.
+ * Only lines whose words have been revealed render (360px stage on
+ * desktop, 480px on mobile), so the pane scrolls through real content.
+ * Under `prefers-reduced-motion` the full output is rendered statically
+ * with no loop.
  */
 
 type LineKind =
@@ -186,7 +205,6 @@ const N1_RATE = LEDGER_76DAY.sustainedDecodeTps; // 70.4 tok/s
 const N4_RATE = LEDGER_76DAY.concurrentN4DecodeTps; // 260 tok/s aggregate
 const WORD_INTERVAL_S = 0.18; // ~11 words/sec writing cadence (readable)
 const PAUSE_AFTER_S = 2.2; // hold the finished output so it can be read
-const STAGE_H = 360; // fixed inner stage height — never shifts
 
 const N1_LINES: StreamLine[] = [
   { kind: 'prompt', text: '> Fix token refresh race condition in src/auth/refresh.rs and run auth test suite' },
@@ -269,8 +287,7 @@ const N4_PANES: PaneSpec[] = [
 interface ComputedLine {
   kind: LineKind;
   words: string[];
-  starts: number[]; // wordStart[i] = token index where word i begins
-  wordEnd: number; // total word count for the line
+  startWord: number; // cumulative word offset where this line begins
 }
 
 interface ComputedPane {
@@ -281,18 +298,15 @@ interface ComputedPane {
   startOffsetS: number;
   lines: ComputedLine[];
   totalWords: number;
-  lastLine: number; // index of the final line
 }
 
 function buildPane(p: PaneSpec): ComputedPane {
   let acc = 0;
-  let wordTotal = 0;
   const lines: ComputedLine[] = p.lines.map((l) => {
     const words = l.text.split(/\s+/).filter(Boolean);
-    const starts = words.map(() => acc);
+    const line: ComputedLine = { kind: l.kind, words, startWord: acc };
     acc += words.length;
-    wordTotal += words.length;
-    return { kind: l.kind, words, starts, wordEnd: words.length };
+    return line;
   });
   return {
     worker: p.worker,
@@ -301,8 +315,7 @@ function buildPane(p: PaneSpec): ComputedPane {
     totalTokens: p.totalTokens,
     startOffsetS: p.startOffsetS,
     lines,
-    totalWords: wordTotal,
-    lastLine: p.lines.length - 1,
+    totalWords: acc,
   };
 }
 
@@ -337,49 +350,29 @@ function lineTextClass(kind: LineKind): string {
 
 function LineView({
   line,
-  activeIdx,
+  visibleWords,
   cursorOn,
 }: {
   line: ComputedLine;
-  activeIdx: number;
+  visibleWords: number;
   cursorOn: boolean;
 }) {
   const isDiff = line.kind === 'diff';
   const isTool = line.kind === 'tool';
   const isTest = line.kind === 'test';
 
-  let cls =
-    'whitespace-pre-wrap break-words font-mono leading-[1.55] ' +
-    lineTextClass(line.kind);
+  let cls = 'break-words font-mono leading-[1.55] ' + lineTextClass(line.kind);
   if (isDiff) cls = cls + ' bg-[#16281D] pl-[1.15em] text-[#7EDFA0]';
   if (isTool) cls = cls + ' pl-[0.85em]';
   if (isTest) cls = cls + ' pl-[0.85em]';
 
+  const shown = line.words.slice(0, visibleWords).join(' ');
+
   return (
     <div className={cls}>
-      {isDiff && <span className="text-[#7EDFA0]">+ </span>}
-      {isTool && (
-        <span className="text-[#8C95A6]">
-          <span className="text-[#7FA6FF]">● </span>
-          {line.words[0]}{' '}
-          <span className="text-[#7FA6FF]">
-            {line.words.slice(1, 4).join(' ')}
-          </span>{' '}
-          <span className="text-[#5D6B80]">
-            {line.words.slice(4).join(' ')}
-          </span>
-        </span>
-      )}
-      {!isTool && (
-        <span>
-          {line.words.map((w, i) => (
-            <span key={i} className={i <= activeIdx ? 'opacity-100' : 'opacity-0'}>
-              {w}
-              {i < line.words.length - 1 ? '\u00A0' : ''}
-            </span>
-          ))}
-        </span>
-      )}
+      {isDiff && <span className="shrink-0">+ </span>}
+      {isTool && <span className="shrink-0 text-[#7FA6FF]">● </span>}
+      <span>{shown}</span>
       {cursorOn && (
         <span
           aria-hidden="true"
@@ -406,30 +399,30 @@ function Pane({
   const scrollRef = useRef<HTMLDivElement>(null);
   const done = tokenF >= pane.totalTokens;
 
-  // Map float token position → which line is active + how many words shown.
-  let activeLine = 0;
-  let shownInLine = 0;
-  let lineActive = false;
-  for (let li = 0; li < pane.lines.length; li++) {
-    const L = pane.lines[li];
-    if (L.wordEnd === 0) continue;
-    if (!lineActive && tokenF >= L.starts[0] + 1e-4) {
-      activeLine = li;
-      lineActive = true;
-      const inLine = tokenF - L.starts[0];
-      shownInLine = Math.max(0, Math.min(L.wordEnd - 1, Math.floor(inLine)));
-    }
-  }
-  // Once the turn is complete, keep the final line fully shown.
-  const shownWords =
-    done && activeLine === pane.lastLine ? pane.lines[pane.lastLine].wordEnd - 1 : shownInLine;
+  // Direct cumulative word math: map the float token position onto a float
+  // word position, then onto a per-line visible-word count. No early-exit
+  // line loop, so every line eventually renders as its words are revealed.
+  const revealedWords = Math.max(
+    1,
+    Math.min(pane.totalWords, Math.floor((tokenF / Math.max(1, pane.totalTokens)) * pane.totalWords)),
+  );
+
+  const cursorLine = done
+    ? pane.lines.length - 1
+    : Math.max(
+        0,
+        ...pane.lines.map((L, li) =>
+          Math.max(0, Math.min(L.words.length, revealedWords - L.startWord)) > 0 ? li : -1,
+        ),
+      );
+
   const cursorOn = running && !done;
 
   // Auto-scroll the pane body to the newest line as it grows.
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [shownWords, activeLine]);
+  }, [revealedWords]);
 
   const counter = Math.min(pane.totalTokens, Math.floor(tokenF));
   const paneMargin = wide ? 'm-1.5 rounded-lg' : 'm-[1.5px]';
@@ -452,23 +445,26 @@ function Pane({
         </p>
       </div>
 
-      {/* Pane body: real words / lines / code stream top→bottom here. */}
+      {/* Pane body: real words / lines / code stream top→bottom here.
+          Only lines with at least one revealed word render — no invisible
+          placeholder rows that would break mobile auto-scroll. */}
       <div
         ref={scrollRef}
         className="min-h-0 flex-1 space-y-[3px] overflow-y-auto px-2.5 py-2 text-[10.5px] [scrollbar-width:none] sm:text-[11px] [&::-webkit-scrollbar]:hidden"
       >
         {pane.lines.map((L, li) => {
-          if (li < activeLine) {
-            // Completed line above the head → fully visible, no cursor.
-            return <LineView key={li} line={L} activeIdx={L.wordEnd - 1} cursorOn={false} />;
-          }
-          if (li > activeLine) {
-            // Not yet reached → render blank (reserved) so layout is stable.
-            return <div key={li} className="invisible h-[1em]" aria-hidden="true" />;
-          }
-          // Active line → word-by-word reveal + live cursor.
+          const visibleWordsInLine = Math.max(
+            0,
+            Math.min(L.words.length, revealedWords - L.startWord),
+          );
+          if (visibleWordsInLine <= 0) return null;
           return (
-            <LineView key={li} line={L} activeIdx={shownWords} cursorOn={cursorOn} />
+            <LineView
+              key={li}
+              line={L}
+              visibleWords={visibleWordsInLine}
+              cursorOn={cursorOn && li === cursorLine}
+            />
           );
         })}
       </div>
@@ -477,7 +473,7 @@ function Pane({
 }
 
 function SSEStreamer() {
-  const reduced = useReducedMotion() ?? false;
+  const reduced = usePrefersReducedMotion();
   const [mode, setMode] = useState<1 | 4>(4);
   const [paused, setPaused] = useState(false);
   const [inView, setInView] = useState(true);
@@ -560,16 +556,16 @@ function SSEStreamer() {
         className="overflow-hidden rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#0A0D14]"
       >
         <div className="flex flex-col">
-          {/* ── Top instrument bar ─────────────────────────────────── */}
-          <div className="flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-5">
+          {/* ── Top instrument bar — single crisp horizontal row ─────── */}
+          <div className="flex min-h-[64px] items-center gap-x-4 border-b border-white/10 px-4 py-3 sm:px-5">
             {/* Session KV cache readout */}
-            <p className="font-mono text-[10.5px] tracking-[0.05em] text-[#8C95A6] sm:text-[11px]">
+            <p className="min-w-0 shrink truncate font-mono text-[10.5px] tracking-[0.05em] text-[#8C95A6] sm:text-[11px]">
               <span className="text-[#FB923C]">SESSION KV CACHE</span>{' '}
               · 93.8% HIT · RTX 3090 (W4A16)
             </p>
 
             {/* 2-mode concurrency toggle + pause/resume */}
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
               <div
                 role="group"
                 aria-label="Concurrency mode"
@@ -613,15 +609,11 @@ function SSEStreamer() {
                 )}
               </button>
             </div>
-
-            {/* Deployment-mode badge */}
-            <span className="w-full rounded-full border border-[#3B82F6]/40 bg-[#3B82F6]/10 px-3 py-1 text-left font-mono text-[10px] uppercase tracking-[0.1em] text-[#7FA6FF] sm:ml-2 sm:w-auto sm:text-center">
-              Hybrid or 100% Local
-            </span>
           </div>
 
-          {/* ── Center streaming window: strictly fixed 360px stage ── */}
-          <div className="relative w-full shrink-0" style={{ height: STAGE_H }}>
+          {/* ── Center streaming window: 480px tall on mobile (4 stacked
+              rows), strictly fixed 360px stage from sm up ── */}
+          <div className="relative h-[480px] w-full shrink-0 sm:h-[360px]">
             {mode === 4 ? (
               <div className="grid h-full w-full grid-cols-1 grid-rows-4 gap-px bg-white/10 sm:grid-cols-2 sm:grid-rows-2">
                 {QUAD_PANES.map((p) => (
@@ -750,7 +742,7 @@ export default function HeroCinema() {
   return (
     <section
       id="hero"
-      className="dark-surface relative -mt-14 min-h-screen w-full min-w-0 max-w-full overflow-x-clip bg-[#05070B] pb-14 pt-10 sm:pt-14"
+      className="dark-surface relative -mt-14 min-h-screen w-full min-w-0 max-w-full overflow-x-clip bg-[#05070B] pb-14 pt-16 sm:pt-14"
       onMouseMove={spotlight.onMouseMove}
     >
       {/* Completely STATIC background — a subtle CSS grid + a radial
