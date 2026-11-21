@@ -3,16 +3,19 @@
  * ACT 1 — HeroCinema.
  * Full-bleed #05070B dark-silicon stage: a completely STATIC background
  * (subtle CSS grid + radial vignette — nothing spins, sweeps, or animates
- * behind the instrument), a fixed-height DOM-based LLM streaming window
- * that renders real words / tokens / lines / paragraphs / tool calls
- * token-by-token from top to bottom with a live amber cursor `▋`
- * (n=4 · 2×2 split-terminal grid at 260 tok/s aggregate, or n=1 single
- * stream at 70.4 tok/s — 360px stage), and the liquid client installer
+ * behind the instrument), a fixed-height DOM-based LLM streaming window that
+ * emits REAL tokens / sub-word chunks / lines / tool calls at authentic
+ * high-speed LLM cadence with a live amber cursor `▋` at the writing head —
+ *   n=4 · 2×2 split-terminal grid · ~65 tok/s per pane · 260 tok/s aggregate
+ *   n=1 · single expanded stream · 70.4 tok/s
+ * — rolling infinitely through 3 distinct polyglot engineering tasks per pane
+ * (TypeScript/Next.js · Python/FastAPI · PostgreSQL/Prisma · Go/infra) with
+ * zero dead pauses and zero jarring resets, plus the liquid client installer
  * with the page's single solid-amber primary button.
  *
  * Zero scroll hijacking, zero stuck opacity — the hero paints at full
- * visibility from the first frame, and every initial value is
- * deterministic (identical SSR and first-client render, no #418).
+ * visibility from the first frame, and every initial value is deterministic
+ * (identical SSR and first-client render, no #418).
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useMotionTemplate, useMotionValue } from 'motion/react';
@@ -146,7 +149,9 @@ function InstallerBar() {
  * Initializes to `false` (identical to SSR) and only reads/subscribes to
  * `window.matchMedia('(prefers-reduced-motion: reduce)')` inside
  * `useEffect` — so the first client hydration pass can never diverge
- * from the server render (no React #418).
+ * from the server render (no React #418). Used to seed the stream's
+ * initial `paused` state, not to hard-stop it: the user's Pause / Stream
+ * button remains the single source of truth for whether the stream runs.
  */
 function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
@@ -162,19 +167,22 @@ function usePrefersReducedMotion(): boolean {
 }
 
 /* ── Authentic LLM token-by-token streamer ─────────────────────────────
- * A fixed-height DOM "terminal" that streams REAL readable words,
- * tokens, lines, paragraphs, and tool calls token-by-token / line-by-line
- * from top to bottom with a live amber cursor `▋` at the writing head —
- * exactly like Claude Code / Cursor / ChatGPT streaming a response.
+ * A fixed-height DOM "terminal" that emits REAL sub-word token chunks,
+ * lines, code, and tool calls at authentic high-speed LLM cadence —
+ * ~65 tok/s per pane (260 tok/s aggregate) in n=4 mode, 70.4 tok/s in n=1
+ * mode — driven by `requestAnimationFrame`, with a live amber cursor `▋` at
+ * the writing head and a live ticking token counter.
  *
- *   n=1: one expanded stream · 70.4 tok/s · 284 tokens per turn.
- *   n=4: 2×2 split-terminal grid · 4 concurrent workers · ~65 tok/s each
- *        · 260 tok/s aggregate from the shared session KV cache.
+ * Each pane holds a rotating queue of 3 distinct polyglot engineering tasks
+ * (Batches A/B/C) that stream continuously one after another in a rolling
+ * window (the most recent ~18 lines stay mounted). When a task finishes
+ * (`✓ tests passed`), a brief `---` separator line appears and the next
+ * task's prompt immediately starts streaming from the bottom — infinite,
+ * with zero dead pauses and zero jarring resets.
  *
- * Only lines whose words have been revealed render (360px stage on
- * desktop, 480px on mobile), so the pane scrolls through real content.
- * Under `prefers-reduced-motion` the full output is rendered statically
- * with no loop.
+ * Under `prefers-reduced-motion: reduce` the stream starts paused with a
+ * crisp amber "▶ Resume Live Stream" button (never a silently-frozen
+ * counter) — resuming is an explicit user choice.
  */
 
 type LineKind =
@@ -184,151 +192,320 @@ type LineKind =
   | 'code'
   | 'diff'
   | 'test'
-  | 'close';
+  | 'close'
+  | 'sep';
 
 interface StreamLine {
   kind: LineKind;
   text: string;
 }
 
+/** A source word split into 3–6-char LLM token chunks (short words stay whole). */
+interface WordToken {
+  parts: string[];
+}
+
+interface TokLine {
+  kind: LineKind;
+  words: WordToken[];
+  tokens: number; // total token chunks in this line
+}
+
+interface StreamTask {
+  file: string;
+  lines: TokLine[];
+  totalTokens: number;
+}
+
 interface PaneSpec {
   worker: string;
-  file: string;
-  rate: number; // tok/s shown in the pane header
-  totalTokens: number; // counter lands exactly here when the pane completes
-  startOffsetS: number; // deterministic stagger between the 4 workers
-  lines: StreamLine[];
+  rate: number; // tok/s (also shown in the pane header)
+  startOffsetS: number; // deterministic stagger between concurrent workers
+  tasks: StreamTask[]; // rotating queue (3 per pane)
 }
 
-const N1_TOTAL = 284; // single-stream turn length (0 → 284 tokens)
+/* Mutable per-pane stream cursor. Lives in a ref (never in React state)
+   so the rAF loop can mutate it at 60fps without re-render churn; a single
+   `setTick` drives the (cheap) re-render each frame. */
+interface PaneState {
+  taskIdx: number;
+  lineIdx: number;
+  tokenInLine: number; // float token offset within the active line
+  lifetime: number; // total tokens emitted (monotonic — never resets)
+  delay: number; // seconds of stagger before this pane starts
+  buffer: Array<{ kind: LineKind; text: string }>; // recent completed lines
+}
+
 const N1_RATE = LEDGER_76DAY.sustainedDecodeTps; // 70.4 tok/s
 const N4_RATE = LEDGER_76DAY.concurrentN4DecodeTps; // 260 tok/s aggregate
-const WORD_INTERVAL_S = 0.18; // ~11 words/sec writing cadence (readable)
-const PAUSE_AFTER_S = 2.2; // hold the finished output so it can be read
+const MAX_DISPLAY = 18; // most recent lines kept mounted in each pane
+const BUFFER_CAP = 24; // rolling buffer size before trimming
 
-const N1_LINES: StreamLine[] = [
-  { kind: 'prompt', text: '> Fix token refresh race condition in src/auth/refresh.rs and run auth test suite' },
-  { kind: 'tool', text: '● read_file src/auth/refresh.rs (412 lines · 93.8% session KV cache hit · 0ms)' },
-  { kind: 'para', text: 'Concurrent refresh calls race on rotation_lock when two client requests arrive within the same 30-second grace window. Adding an idempotency check before minting a new token pair:' },
-  { kind: 'code', text: 'pub async fn rotate_refresh_token(&self, token_id: Uuid) -> Result<TokenPair, AuthError> {' },
-  { kind: 'code', text: 'let guard = self.rotation_lock.lock().await;' },
-  { kind: 'diff', text: 'if guard.rotated_within(Duration::from_secs(30)) {' },
-  { kind: 'diff', text: 'return Ok(guard.cached_pair().clone());' },
-  { kind: 'diff', text: '}' },
-  { kind: 'code', text: 'self.mint_and_persist_pair(token_id).await' },
-  { kind: 'code', text: '}' },
-  { kind: 'test', text: '● bash cargo test --package auth — 14 passed in 0.41s (exit 0)' },
-  { kind: 'close', text: 'Done. All 14 auth tests pass with zero network egress and $0.0000 token cost.' },
-];
+/* ── Tokenizer: split a line into authentic ~4-char token chunks ─────── */
 
-const N4_PANES: PaneSpec[] = [
-  {
-    worker: 'worker-01',
-    file: 'src/auth/refresh.rs',
-    rate: 66.2,
-    totalTokens: 58,
-    startOffsetS: 0,
-    lines: [
-      { kind: 'para', text: 'Two clients hit rotate within one 30s grace window and raced on rotation_lock.' },
-      { kind: 'para', text: 'Adding an idempotency guard before minting a fresh token pair:' },
-      { kind: 'diff', text: 'if guard.rotated_within(Duration::from_secs(30)) {' },
-      { kind: 'diff', text: 'return Ok(guard.cached_pair().clone());' },
-      { kind: 'diff', text: '}' },
-      { kind: 'test', text: '✓ cargo test auth (14 passed)' },
-    ],
-  },
-  {
-    worker: 'worker-02',
-    file: 'src/api/rate_limit.rs',
-    rate: 64.8,
-    totalTokens: 56,
-    startOffsetS: 0.12,
-    lines: [
-      { kind: 'para', text: 'A 100 rps burst drained the whole budget in a single tick.' },
-      { kind: 'para', text: 'Replacing the fixed refill with a sliding-window token bucket:' },
-      { kind: 'diff', text: 'let now = Instant::now();' },
-      { kind: 'diff', text: 'self.window.retain(|t| now.duration_since(*t) < WINDOW);' },
-      { kind: 'diff', text: 'let free = self.capacity.saturating_sub(self.window.len());' },
-      { kind: 'test', text: '✓ cargo test rate_limit (9 passed)' },
-    ],
-  },
-  {
-    worker: 'worker-03',
-    file: 'src/db/pool.rs',
-    rate: 65.1,
-    totalTokens: 54,
-    startOffsetS: 0.24,
-    lines: [
-      { kind: 'para', text: 'Idle connections held VRAM for 12 minutes past their TTL.' },
-      { kind: 'para', text: 'Adding a hard idle-timeout guard before reuse:' },
-      { kind: 'diff', text: 'if conn.idle_for() > IDLE_TTL {' },
-      { kind: 'diff', text: 'self.drain(conn.id).await?;' },
-      { kind: 'diff', text: 'continue;' },
-      { kind: 'test', text: '✓ cargo test db_pool (11 passed)' },
-    ],
-  },
-  {
-    worker: 'worker-04',
-    file: 'src/sandbox/policy.rs',
-    rate: 63.9,
-    totalTokens: 52,
-    startOffsetS: 0.36,
-    lines: [
-      { kind: 'para', text: 'The egress audit found raw socket() calls bypassing the proxy.' },
-      { kind: 'para', text: 'Tightening the zero-egress rule to deny outbound connects:' },
-      { kind: 'diff', text: 'Rule::deny("socket",' },
-      { kind: 'diff', text: 'SocketFlags::CONNECT | SocketFlags::SEND,' },
-      { kind: 'diff', text: '),' },
-      { kind: 'test', text: '✓ cargo test sandbox (22 passed)' },
-    ],
-  },
-];
-
-interface ComputedLine {
-  kind: LineKind;
-  words: string[];
-  startWord: number; // cumulative word offset where this line begins
-}
-
-interface ComputedPane {
-  worker: string;
-  file: string;
-  rate: number;
-  totalTokens: number;
-  startOffsetS: number;
-  lines: ComputedLine[];
-  totalWords: number;
-}
-
-function buildPane(p: PaneSpec): ComputedPane {
-  let acc = 0;
-  const lines: ComputedLine[] = p.lines.map((l) => {
-    const words = l.text.split(/\s+/).filter(Boolean);
-    const line: ComputedLine = { kind: l.kind, words, startWord: acc };
-    acc += words.length;
-    return line;
+function tokenizeLine(kind: LineKind, text: string): TokLine {
+  const words = text.split(/\s+/).filter(Boolean);
+  const tokens: WordToken[] = words.map((w) => {
+    if (w.length <= 12) return { parts: [w] };
+    const parts: string[] = [];
+    for (let i = 0; i < w.length; i += 6) parts.push(w.slice(i, i + 6));
+    return { parts };
   });
   return {
-    worker: p.worker,
-    file: p.file,
-    rate: p.rate,
-    totalTokens: p.totalTokens,
-    startOffsetS: p.startOffsetS,
-    lines,
-    totalWords: acc,
+    kind,
+    words: tokens,
+    tokens: tokens.reduce((a, t) => a + t.parts.length, 0),
   };
 }
 
-const SINGLE_PANE: ComputedPane = buildPane({
-  worker: 'worker-01',
-  file: 'src/auth/refresh.rs',
-  rate: N1_RATE,
-  totalTokens: N1_TOTAL,
-  startOffsetS: 0,
-  lines: N1_LINES,
-});
+/** Render a line with `n` tokens revealed (partial writes at the head). */
+function renderPartial(line: TokLine, n: number): string {
+  if (n <= 0) return '';
+  let rem = Math.min(n, line.tokens);
+  const out: string[] = [];
+  for (const w of line.words) {
+    const take = Math.min(w.parts.length, rem);
+    if (take <= 0) break;
+    out.push(w.parts.slice(0, take).join(''));
+    rem -= take;
+    if (rem <= 0) break;
+  }
+  return out.join(' ');
+}
 
-const QUAD_PANES: ComputedPane[] = N4_PANES.map(buildPane);
+function buildTask(file: string, lines: StreamLine[]): StreamTask {
+  const tl = lines.map((l) => tokenizeLine(l.kind, l.text));
+  return {
+    file,
+    lines: tl,
+    totalTokens: tl.reduce((a, l) => a + l.tokens, 0),
+  };
+}
+
+/* ── Polyglot engineering workloads (zero Rust bias) ───────────────────
+   Three rotating tasks per pane so each worker cycles endlessly through
+   diverse stacks. Every task: prompt → read_file → one-sentence diagnosis
+   → green `+` diff lines → green `✓` test pass. */
+
+/* Batch A/B/C · worker-01 — TypeScript / Next.js */
+const TS_TASKS: StreamTask[] = [
+  buildTask('apps/web/auth/session.ts', [
+    { kind: 'prompt', text: '> Fix the token refresh race in session.ts and run the auth suite' },
+    { kind: 'tool', text: '● read_file apps/web/auth/session.ts (212 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'Two concurrent refreshes rotate the same session twice inside the grace window.' },
+    { kind: 'diff', text: 'if (await rotatedWithin(session, 30_000)) {' },
+    { kind: 'diff', text: '  return cachedPair(session);' },
+    { kind: 'diff', text: '}' },
+    { kind: 'test', text: '✓ vitest auth — 14 passed in 0.41s (exit 0)' },
+  ]),
+  buildTask('components/CheckoutForm.tsx', [
+    { kind: 'prompt', text: '> Validate the checkout form card fields fully offline' },
+    { kind: 'tool', text: '● read_file components/CheckoutForm.tsx (188 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'Card number and expiry are checked client-side before any network egress.' },
+    { kind: 'diff', text: 'const luhn = (n: string) => validLuhn(n);' },
+    { kind: 'diff', text: 'if (!luhn(card.number)) return setError("card");' },
+    { kind: 'diff', text: '}' },
+    { kind: 'test', text: '✓ vitest checkout — 8 passed in 0.33s (exit 0)' },
+  ]),
+  buildTask('lib/webhook.ts', [
+    { kind: 'prompt', text: '> Verify the HMAC on inbound webhooks before processing' },
+    { kind: 'tool', text: '● read_file lib/webhook.ts (96 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'The signature is compared with a constant-time check before the payload is parsed.' },
+    { kind: 'diff', text: 'const ok = timingSafeEqual(sig, expected);' },
+    { kind: 'diff', text: 'if (!ok) return 401;' },
+    { kind: 'diff', text: '}' },
+    { kind: 'test', text: '✓ vitest webhook — 11 passed in 0.29s (exit 0)' },
+  ]),
+];
+
+/* Batch A/B/C · worker-02 — Python / FastAPI */
+const PY_TASKS: StreamTask[] = [
+  buildTask('api/rate_limit.py', [
+    { kind: 'prompt', text: '> Replace the fixed token refill with a sliding-window bucket' },
+    { kind: 'tool', text: '● read_file api/rate_limit.py (141 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'A 100 rps burst drained the whole budget in one tick; a sliding window fixes it.' },
+    { kind: 'diff', text: 'now = monotonic()' },
+    { kind: 'diff', text: 'self.window = [t for t in self.window if now - t < WINDOW]' },
+    { kind: 'diff', text: 'free = self.capacity - len(self.window)' },
+    { kind: 'test', text: '✓ pytest tests/test_rate_limit.py — 9 passed in 0.38s' },
+  ]),
+  buildTask('services/billing_sync.py', [
+    { kind: 'prompt', text: '> Sync invoices idempotently so replayed events never double-charge' },
+    { kind: 'tool', text: '● read_file services/billing_sync.py (203 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'Each invoice carries an idempotency key that is checked before the ledger insert.' },
+    { kind: 'diff', text: 'if exists(ledger, invoice.idempotency_key):' },
+    { kind: 'diff', text: '    return invoice' },
+    { kind: 'diff', text: 'ledger.insert(invoice)' },
+    { kind: 'test', text: '✓ pytest tests/test_billing.py — 12 passed in 0.52s' },
+  ]),
+  buildTask('jobs/ingest_queue.py', [
+    { kind: 'prompt', text: '> Dedupe queued ingestion jobs by payload hash' },
+    { kind: 'tool', text: '● read_file jobs/ingest_queue.py (117 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'Jobs are keyed by the sha256 of the payload so replayed events are dropped.' },
+    { kind: 'diff', text: 'key = sha256(payload).hexdigest()' },
+    { kind: 'diff', text: 'if key in seen: continue' },
+    { kind: 'diff', text: 'queue.put((key, payload))' },
+    { kind: 'test', text: '✓ pytest tests/test_ingest.py — 7 passed in 0.31s' },
+  ]),
+];
+
+/* Batch A/B/C · worker-03 — PostgreSQL / SQL / Prisma */
+const SQL_TASKS: StreamTask[] = [
+  buildTask('db/migrations/042_indexes.sql', [
+    { kind: 'prompt', text: '> Add a covering index for the sessions hot path' },
+    { kind: 'tool', text: '● read_file db/migrations/042_indexes.sql (58 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'The refresh lookup seq-scans sessions; a covering index on (user_id, expires_at) kills it.' },
+    { kind: 'diff', text: 'CREATE INDEX CONCURRENTLY idx_sessions_user_expires' },
+    { kind: 'diff', text: 'ON sessions (user_id, expires_at) INCLUDE (token_hash);' },
+    { kind: 'test', text: '✓ psql verify — 11 checks ok' },
+  ]),
+  buildTask('db/queries/ledger_rollup.sql', [
+    { kind: 'prompt', text: '> Make the daily ledger rollup avoid sequential scans' },
+    { kind: 'tool', text: '● read_file db/queries/ledger_rollup.sql (74 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'The rollup is driven by the range index on (day, account) with an incremental cursor.' },
+    { kind: 'diff', text: 'WHERE day = :day AND account BETWEEN :lo AND :hi' },
+    { kind: 'diff', text: 'GROUP BY account' },
+    { kind: 'test', text: '✓ psql explain — 0 seq scans' },
+  ]),
+  buildTask('prisma/schema.prisma', [
+    { kind: 'prompt', text: '> Validate the Prisma schema before regenerating the client' },
+    { kind: 'tool', text: '● read_file prisma/schema.prisma (320 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'Relations and indexes resolve cleanly; the client regenerates from the validated schema.' },
+    { kind: 'diff', text: 'model Invoice {' },
+    { kind: 'diff', text: '  idempotencyKey String @unique' },
+    { kind: 'diff', text: '}' },
+    { kind: 'test', text: '✓ prisma validate — schema ok' },
+  ]),
+];
+
+/* Batch A/B/C · worker-04 — Go / infra */
+const GO_TASKS: StreamTask[] = [
+  buildTask('server/egress_proxy.go', [
+    { kind: 'prompt', text: '> Deny outbound connects in the egress proxy default policy' },
+    { kind: 'tool', text: '● read_file server/egress_proxy.go (244 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'Raw dials bypass the proxy; the default rule now denies outbound connects.' },
+    { kind: 'diff', text: 'if !allowlisted(host) {' },
+    { kind: 'diff', text: '    return denyConn(conn, "egress denied")' },
+    { kind: 'diff', text: '}' },
+    { kind: 'test', text: '✓ go test ./server/... — 22 passed in 0.64s' },
+  ]),
+  buildTask('cmd/worker_pool.go', [
+    { kind: 'prompt', text: '> Cap the worker pool to the GPU count and recycle idle workers' },
+    { kind: 'tool', text: '● read_file cmd/worker_pool.go (189 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'Pool size is pinned to the detected GPU count; idle workers are reclaimed after the TTL.' },
+    { kind: 'diff', text: 'size := detectGPUs()' },
+    { kind: 'diff', text: 'if w.idleFor() > ttl { w.stop() }' },
+    { kind: 'test', text: '✓ go test ./cmd/... — 15 passed in 0.58s' },
+  ]),
+  buildTask('deploy/nginx.conf', [
+    { kind: 'prompt', text: '> Harden the nginx config for the air-gapped edge' },
+    { kind: 'tool', text: '● read_file deploy/nginx.conf (87 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'Server tokens are off, timeouts tightened, and the upstream pinned to the local engine.' },
+    { kind: 'diff', text: 'server_tokens off;' },
+    { kind: 'diff', text: 'proxy_pass http://127.0.0.1:18200;' },
+    { kind: 'test', text: '✓ nginx -t — syntax ok' },
+  ]),
+];
+
+/* n=4 quad panes — 4 concurrent workers · ~65 tok/s each · 260 tok/s agg. */
+const QUAD_PANES: PaneSpec[] = [
+  { worker: 'worker-01', rate: 66.2, startOffsetS: 0, tasks: TS_TASKS },
+  { worker: 'worker-02', rate: 64.8, startOffsetS: 0.12, tasks: PY_TASKS },
+  { worker: 'worker-03', rate: 65.1, startOffsetS: 0.24, tasks: SQL_TASKS },
+  { worker: 'worker-04', rate: 63.9, startOffsetS: 0.36, tasks: GO_TASKS },
+];
+
+/* n=1 single stream — cycles continuously across TypeScript / Python / Go. */
+const N1_TASKS: StreamTask[] = [
+  buildTask('apps/web/auth/session.ts', [
+    { kind: 'prompt', text: '> Fix the token refresh race and run the auth suite' },
+    { kind: 'tool', text: '● read_file apps/web/auth/session.ts (212 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'Two concurrent refreshes rotate the same session twice inside the grace window.' },
+    { kind: 'diff', text: 'if (await rotatedWithin(session, 30_000)) {' },
+    { kind: 'diff', text: '  return cachedPair(session);' },
+    { kind: 'diff', text: '}' },
+    { kind: 'tool', text: '● bash npx vitest run auth' },
+    { kind: 'test', text: '✓ vitest auth — 14 passed in 0.41s (exit 0)' },
+  ]),
+  buildTask('api/rate_limit.py', [
+    { kind: 'prompt', text: '> Replace the fixed token refill with a sliding-window bucket' },
+    { kind: 'tool', text: '● read_file api/rate_limit.py (141 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'A 100 rps burst drained the whole budget in one tick; a sliding window fixes it.' },
+    { kind: 'diff', text: 'now = monotonic()' },
+    { kind: 'diff', text: 'self.window = [t for t in self.window if now - t < WINDOW]' },
+    { kind: 'diff', text: 'free = self.capacity - len(self.window)' },
+    { kind: 'tool', text: '● bash python -m pytest tests/test_rate_limit.py' },
+    { kind: 'test', text: '✓ pytest — 9 passed in 0.38s' },
+  ]),
+  buildTask('server/egress_proxy.go', [
+    { kind: 'prompt', text: '> Deny outbound connects in the egress proxy default policy' },
+    { kind: 'tool', text: '● read_file server/egress_proxy.go (244 lines · 93.8% KV hit · 0ms)' },
+    { kind: 'para', text: 'Raw dials bypass the proxy; the default rule now denies outbound connects.' },
+    { kind: 'diff', text: 'if !allowlisted(host) {' },
+    { kind: 'diff', text: '    return denyConn(conn, "egress denied")' },
+    { kind: 'diff', text: '}' },
+    { kind: 'tool', text: '● bash go test ./server/...' },
+    { kind: 'test', text: '✓ go test — 22 passed in 0.64s' },
+  ]),
+];
+
+const SINGLE_PANE: PaneSpec = {
+  worker: 'worker-01',
+  rate: N1_RATE,
+  startOffsetS: 0,
+  tasks: N1_TASKS,
+};
+
+/* ── Pure deterministic state builder (SSR === first client render) ───
+   Pre-emits each pane's first prompt line so the terminal reads as a live
+   console from the very first frame — identical on the server and the first
+   client paint (no clock, no randomness). */
+function initStates(panes: PaneSpec[]): PaneState[] {
+  return panes.map((p) => {
+    const first = p.tasks[0].lines[0];
+    const st: PaneState = {
+      taskIdx: 0,
+      lineIdx: 1,
+      tokenInLine: 0,
+      lifetime: first.tokens,
+      delay: p.startOffsetS,
+      buffer: [{ kind: first.kind, text: renderPartial(first, first.tokens) }],
+    };
+    return st;
+  });
+}
+
+/** Advance one pane's stream cursor by `dt` seconds (mutates in place). */
+function advance(pane: PaneSpec, st: PaneState, dt: number): void {
+  if (st.delay > 0) {
+    st.delay -= dt;
+    return;
+  }
+  let adv = pane.rate * dt;
+  let guard = 0;
+  while (adv > 0 && guard++ < 2000) {
+    const task = pane.tasks[st.taskIdx];
+    const line = task.lines[st.lineIdx];
+    const remain = line.tokens - st.tokenInLine;
+    if (adv < remain) {
+      st.tokenInLine += adv;
+      adv = 0;
+      break;
+    }
+    adv -= remain;
+    st.lifetime += line.tokens;
+    st.buffer.push({ kind: line.kind, text: renderPartial(line, line.tokens) });
+    st.tokenInLine = 0;
+    st.lineIdx++;
+    if (st.lineIdx >= task.lines.length) {
+      // Task complete → brief separator, then the next task starts at once.
+      st.buffer.push({ kind: 'sep', text: '---' });
+      st.taskIdx = (st.taskIdx + 1) % pane.tasks.length;
+      st.lineIdx = 0;
+    }
+    if (st.buffer.length > BUFFER_CAP) st.buffer.shift();
+  }
+}
 
 function lineTextClass(kind: LineKind): string {
   switch (kind) {
@@ -340,6 +517,8 @@ function lineTextClass(kind: LineKind): string {
       return 'text-[#4ADE80]';
     case 'close':
       return 'text-[#A3AEBF]';
+    case 'sep':
+      return 'text-[#3A4556]';
     case 'code':
     case 'diff':
       return 'text-[#D7DEE9]';
@@ -349,30 +528,28 @@ function lineTextClass(kind: LineKind): string {
 }
 
 function LineView({
-  line,
-  visibleWords,
+  kind,
+  text,
   cursorOn,
 }: {
-  line: ComputedLine;
-  visibleWords: number;
+  kind: LineKind;
+  text: string;
   cursorOn: boolean;
 }) {
-  const isDiff = line.kind === 'diff';
-  const isTool = line.kind === 'tool';
-  const isTest = line.kind === 'test';
+  const isDiff = kind === 'diff';
+  const isTool = kind === 'tool';
+  const isTest = kind === 'test';
 
-  let cls = 'break-words font-mono leading-[1.55] ' + lineTextClass(line.kind);
+  let cls = 'break-words font-mono leading-[1.55] ' + lineTextClass(kind);
   if (isDiff) cls = cls + ' bg-[#16281D] pl-[1.15em] text-[#7EDFA0]';
   if (isTool) cls = cls + ' pl-[0.85em]';
   if (isTest) cls = cls + ' pl-[0.85em]';
-
-  const shown = line.words.slice(0, visibleWords).join(' ');
 
   return (
     <div className={cls}>
       {isDiff && <span className="shrink-0">+ </span>}
       {isTool && <span className="shrink-0 text-[#7FA6FF]">● </span>}
-      <span>{shown}</span>
+      <span>{text}</span>
       {cursorOn && (
         <span
           aria-hidden="true"
@@ -387,45 +564,46 @@ function LineView({
 
 function Pane({
   pane,
-  tokenF,
+  st,
   running,
   wide,
 }: {
-  pane: ComputedPane;
-  tokenF: number; // float tokens written (0..totalTokens)
+  pane: PaneSpec;
+  st: PaneState;
   running: boolean;
   wide: boolean; // n=1 expanded stream
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const done = tokenF >= pane.totalTokens;
+  const task = pane.tasks[st.taskIdx];
+  const activeLine = task.lines[st.lineIdx];
+  const activeText = renderPartial(activeLine, st.tokenInLine);
 
-  // Direct cumulative word math: map the float token position onto a float
-  // word position, then onto a per-line visible-word count. No early-exit
-  // line loop, so every line eventually renders as its words are revealed.
-  const revealedWords = Math.max(
-    1,
-    Math.min(pane.totalWords, Math.floor((tokenF / Math.max(1, pane.totalTokens)) * pane.totalWords)),
-  );
+  // Rolling window: completed lines + the active (partially written) line.
+  // When paused and the active line is still empty, omit it so a paused
+  // pane never shows a dead blank row at the writing head.
+  let display = [...st.buffer];
+  if (activeText !== '' || running) {
+    display.push({ kind: activeLine.kind, text: activeText });
+  }
+  if (display.length === 0) {
+    display = [
+      {
+        kind: task.lines[0].kind,
+        text: renderPartial(task.lines[0], task.lines[0].tokens),
+      },
+    ];
+  }
+  if (display.length > MAX_DISPLAY) display = display.slice(-MAX_DISPLAY);
 
-  const cursorLine = done
-    ? pane.lines.length - 1
-    : Math.max(
-        0,
-        ...pane.lines.map((L, li) =>
-          Math.max(0, Math.min(L.words.length, revealedWords - L.startWord)) > 0 ? li : -1,
-        ),
-      );
-
-  const cursorOn = running && !done;
+  const counter = Math.floor(st.lifetime);
+  const paneMargin = wide ? 'm-1.5 rounded-lg' : 'm-[1.5px]';
 
   // Auto-scroll the pane body to the newest line as it grows.
+  const scrollKey = `${st.taskIdx}:${st.lineIdx}:${st.tokenInLine.toFixed(1)}`;
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [revealedWords]);
-
-  const counter = Math.min(pane.totalTokens, Math.floor(tokenF));
-  const paneMargin = wide ? 'm-1.5 rounded-lg' : 'm-[1.5px]';
+  }, [scrollKey]);
 
   return (
     <div
@@ -436,7 +614,7 @@ function Pane({
         <p className="min-w-0 truncate font-mono text-[9.5px] leading-tight sm:text-[10px]">
           <span className="text-[#F97316]">{pane.worker}</span>
           <span className="text-[#5D6B80]"> · </span>
-          <span className="text-[#A3AEBF]">{pane.file}</span>
+          <span className="text-[#A3AEBF]">{task.file}</span>
         </p>
         <p className="shrink-0 font-mono text-[9.5px] tabular-nums sm:text-[10px]">
           <span className="text-[#F5F7FA]">{counter}</span>
@@ -445,28 +623,20 @@ function Pane({
         </p>
       </div>
 
-      {/* Pane body: real words / lines / code stream top→bottom here.
-          Only lines with at least one revealed word render — no invisible
-          placeholder rows that would break mobile auto-scroll. */}
+      {/* Pane body: tokens / lines / code stream top→bottom here. Only the
+          most recent ~18 lines stay mounted; the rest scroll away. */}
       <div
         ref={scrollRef}
         className="min-h-0 flex-1 space-y-[3px] overflow-y-auto px-2.5 py-2 text-[10.5px] [scrollbar-width:none] sm:text-[11px] [&::-webkit-scrollbar]:hidden"
       >
-        {pane.lines.map((L, li) => {
-          const visibleWordsInLine = Math.max(
-            0,
-            Math.min(L.words.length, revealedWords - L.startWord),
-          );
-          if (visibleWordsInLine <= 0) return null;
-          return (
-            <LineView
-              key={li}
-              line={L}
-              visibleWords={visibleWordsInLine}
-              cursorOn={cursorOn && li === cursorLine}
-            />
-          );
-        })}
+        {display.map((L, i) => (
+          <LineView
+            key={i}
+            kind={L.kind}
+            text={L.text}
+            cursorOn={running && i === display.length - 1}
+          />
+        ))}
       </div>
     </div>
   );
@@ -479,12 +649,26 @@ function SSEStreamer() {
   const [inView, setInView] = useState(true);
   const stageRef = useRef<HTMLDivElement>(null);
 
-  // One shared stream clock for every pane (staggered per-pane offsets).
-  const [, setTick] = useState(0); // rAF-driven render trigger
-  const clockRef = useRef(0); // seconds since the current turn started
+  // One shared rAF loop drives every pane; per-pane cursors live in a ref.
+  const [, setTick] = useState(0);
+  const statesRef = useRef<PaneState[] | null>(null);
 
-  // Reduced motion: render the full output statically (deterministic).
-  const panes = mode === 1 ? [SINGLE_PANE] : QUAD_PANES;
+  // Deterministic per-mode stream states (also the SSR/first-paint value).
+  if (statesRef.current === null) {
+    statesRef.current = initStates(mode === 4 ? QUAD_PANES : [SINGLE_PANE]);
+  }
+
+  // Reduced motion: seed the stream in a paused state with a crisp amber
+  // "▶ Resume Live Stream" affordance — never a silently-frozen counter.
+  useEffect(() => {
+    if (reduced) setPaused(true);
+  }, [reduced]);
+
+  // Rebuild the stream cursors whenever the concurrency mode changes.
+  useEffect(() => {
+    statesRef.current = initStates(mode === 4 ? QUAD_PANES : [SINGLE_PANE]);
+    setTick((t) => t + 1);
+  }, [mode]);
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return;
@@ -500,52 +684,32 @@ function SSEStreamer() {
     return () => io.disconnect();
   }, []);
 
-  const running = inView && !paused && !reduced;
-
-  // Deterministic per-mode start clock so SSR & first paint agree (0).
-  useEffect(() => {
-    clockRef.current = 0;
-    setTick((t) => t + 1);
-  }, [mode, running, reduced]);
+  // The user's Pause / Stream button is the sole source of truth for
+  // whether the stream runs (it is NOT hard-gated by reduced motion).
+  const running = inView && !paused;
 
   useEffect(() => {
     if (!running) return;
     let raf = 0;
     let last = performance.now();
     const step = (now: number) => {
-      const dt = Math.min(0.1, (now - last) / 1000);
+      const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      clockRef.current += dt;
+      const panes = mode === 4 ? QUAD_PANES : [SINGLE_PANE];
+      const states = statesRef.current ?? [];
+      for (let i = 0; i < panes.length; i++) {
+        if (states[i]) advance(panes[i], states[i], dt);
+      }
       setTick((t) => (t + 1) % 1_000_000);
       raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [running]);
+  }, [running, mode]);
 
-  // Compute per-pane float token position from the shared clock.
-  const clock = reduced ? Infinity : clockRef.current;
-  const maxTurnWords =
-    mode === 1
-      ? SINGLE_PANE.totalWords
-      : Math.max(
-          ...QUAD_PANES.map((p) => p.totalWords + p.startOffsetS / WORD_INTERVAL_S),
-        );
-  const turnDoneS = maxTurnWords * WORD_INTERVAL_S + PAUSE_AFTER_S;
-
-  // Wrap the turn after it has completed + held for the read pause.
-  const effectiveClock = reduced ? Infinity : clock % turnDoneS;
-
-  const tokenFor = (p: ComputedPane): number => {
-    if (reduced) return p.totalTokens;
-    const local = effectiveClock - p.startOffsetS;
-    if (local <= 0) return 0;
-    const words = local / WORD_INTERVAL_S; // float words written
-    const f = (words / p.totalWords) * p.totalTokens;
-    return Math.max(0, Math.min(p.totalTokens, f));
-  };
-
-  const aggregateTokens = panes.reduce((a, p) => a + tokenFor(p), 0);
+  const panes = mode === 4 ? QUAD_PANES : [SINGLE_PANE];
+  const states = statesRef.current ?? [];
+  const aggregateTokens = states.reduce((a, s) => a + (s ? s.lifetime : 0), 0);
   const aggregateRate = mode === 4 ? N4_RATE : N1_RATE;
 
   return (
@@ -557,15 +721,15 @@ function SSEStreamer() {
       >
         <div className="flex flex-col">
           {/* ── Top instrument bar — single crisp horizontal row ─────── */}
-          <div className="flex min-h-[64px] items-center gap-x-4 border-b border-white/10 px-4 py-3 sm:px-5">
+          <div className="flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-5">
             {/* Session KV cache readout */}
             <p className="min-w-0 shrink truncate font-mono text-[10.5px] tracking-[0.05em] text-[#8C95A6] sm:text-[11px]">
               <span className="text-[#FB923C]">SESSION KV CACHE</span>{' '}
               · 93.8% HIT · RTX 3090 (W4A16)
             </p>
 
-            {/* 2-mode concurrency toggle + pause/resume */}
-            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            {/* 2-mode concurrency toggle + pause / stream control */}
+            <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
               <div
                 role="group"
                 aria-label="Concurrency mode"
@@ -599,13 +763,23 @@ function SSEStreamer() {
               <button
                 type="button"
                 onClick={() => setPaused((p) => !p)}
-                aria-label={paused ? 'Resume the stream' : 'Pause the stream'}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-black/40 text-[#D7DEE9] transition-colors hover:border-white/25"
+                aria-label={paused ? 'Resume the live stream' : 'Pause the live stream'}
+                className={`flex h-9 shrink-0 items-center gap-1.5 rounded-md px-2.5 font-mono text-[10.5px] font-semibold transition-colors ${
+                  paused
+                    ? 'border border-[#F97316]/60 bg-[#F97316] text-[#0B0F17] hover:bg-[#FB923C]'
+                    : 'border border-white/10 bg-black/40 text-[#D7DEE9] hover:border-white/25'
+                }`}
               >
                 {paused ? (
-                  <Play size={14} strokeWidth={2.25} />
+                  <>
+                    <Play size={13} strokeWidth={2.5} />
+                    <span className="whitespace-nowrap">Resume Live Stream</span>
+                  </>
                 ) : (
-                  <Pause size={14} strokeWidth={2.25} />
+                  <>
+                    <Pause size={13} strokeWidth={2.25} />
+                    <span className="whitespace-nowrap">Pause</span>
+                  </>
                 )}
               </button>
             </div>
@@ -616,20 +790,15 @@ function SSEStreamer() {
           <div className="relative h-[480px] w-full shrink-0 sm:h-[360px]">
             {mode === 4 ? (
               <div className="grid h-full w-full grid-cols-1 grid-rows-4 gap-px bg-white/10 sm:grid-cols-2 sm:grid-rows-2">
-                {QUAD_PANES.map((p) => (
+                {panes.map((p, i) => (
                   <div key={p.worker} className="relative min-h-0" aria-hidden="true">
-                    <Pane pane={p} tokenF={tokenFor(p)} running={running} wide={false} />
+                    <Pane pane={p} st={states[i]} running={running} wide={false} />
                   </div>
                 ))}
               </div>
             ) : (
               <div className="h-full w-full">
-                <Pane
-                  pane={SINGLE_PANE}
-                  tokenF={tokenFor(SINGLE_PANE)}
-                  running={running}
-                  wide
-                />
+                <Pane pane={panes[0]} st={states[0]} running={running} wide />
               </div>
             )}
           </div>

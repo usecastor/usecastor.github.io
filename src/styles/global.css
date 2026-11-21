@@ -51,6 +51,8 @@
   /* ── Ink ───────────────────────────────────────────── */
   --color-ink: var(--ink-primary);
   --color-ink-secondary: var(--ink-secondary);
+  /* Softer body-text ink for spec-card copy on white cells (AA+ on #fff). */
+  --color-ink-soft: var(--ink-secondary);
   --color-ink-muted: var(--ink-muted);
 
   /* ── Signals ───────────────────────────────────────── */
@@ -374,6 +376,15 @@ code ::selection,
     transition: none;
     transform: none;
   }
+
+  /* The live LLM writing-head caret keeps its blink cadence even under
+     reduced motion — it is a functional "the stream is live" indicator,
+     not a decorative motion, so it must never collapse to a frozen frame
+     and trick users into thinking the console is broken. */
+  .animate-\[cursor-blink_1\.05s_step-end_infinite\] {
+    animation-duration: 1.05s !important;
+    animation-iteration-count: infinite !important;
+  }
 }
 
 /* ── Live LLM streaming cursor blink (used by the Hero streaming
@@ -464,13 +475,14 @@ code ::selection,
 
 /* .field-shell — page/section wrapper carrying continuous full-height
    vertical guide rails. The rails are a pointer-transparent ::before layer
-   inset `clamp(12px, 3vw, 48px)` from the viewport edges; `currentColor`
-   at 0.11 opacity means they follow whichever ink the section sets, so
-   they read faint on both paper and obsidian with zero extra markup.
-   The overlay sits above section backgrounds (z-index 30) so the rails stay
-   continuous across the dark and paper stages, but below the sticky header
-   (z-50), mobile drawer (z-50), and skip link (z-60). pointer-events none,
-   so it never intercepts a tap or drag. */
+   inset `clamp(8px, 1.5vw, 24px)` from the viewport edges, so at common
+   desktop widths (1280–1440px) they sit cleanly in the outer gutters and
+   never cut through max-w-5xl / max-w-6xl content. `currentColor` at 0.08
+   opacity means they read as faint architectural registration lines on both
+   paper and obsidian with zero extra markup. The overlay sits above section
+   backgrounds (z-index 30) so the rails stay continuous across the dark and
+   paper stages, but below the sticky header (z-50), mobile drawer (z-50), and
+   skip link (z-60). pointer-events none, so it never intercepts a tap or drag. */
 .field-shell {
   position: relative;
 }

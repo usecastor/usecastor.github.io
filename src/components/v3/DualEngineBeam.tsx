@@ -277,16 +277,18 @@ const SPECS: Array<{ tag: string; title: string; body: string }> = [
 
 function SpecGrid() {
   return (
-    <div className="spec-grid mt-8 grid grid-cols-1 gap-8 border-t border-black/10 pt-8 md:grid-cols-3">
+    <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-3">
       {SPECS.map((s) => (
-        <div key={s.tag} className="min-w-0">
-          <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#9CA3AF]">
-            {s.tag}
-          </p>
-          <h3 className="mt-1.5 font-display text-lg font-bold tracking-[-0.02em] text-[#101319]">
-            {s.title}
-          </h3>
-          <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#4A5568]">
+        <div key={s.tag} className="flex flex-col justify-between rounded-[3px] border border-black/10 bg-white p-6">
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-muted">
+              {s.tag}
+            </p>
+            <h3 className="mt-2 font-display text-lg font-bold text-ink">
+              {s.title}
+            </h3>
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-ink-soft">
             {s.body}
           </p>
         </div>
@@ -296,8 +298,9 @@ function SpecGrid() {
 }
 
 /* ── 4-stat proof strip ────────────────────────────────────────────────
-   Calm neutral eyebrows on the first 3 cards; the bright amber eyebrow
-   is reserved for the $10.12-vs-$6,044.48 power-vs-cloud card (4th). */
+   Crisp 1px-bordered white cells divided by hairlines. Every eyebrow
+   fits on a single line; the amber card carries its cloud-comparison
+   note cleanly below the value, matching the other three cards. */
 
 interface ProofStat {
   value: number;
@@ -305,6 +308,8 @@ interface ProofStat {
   suffix?: string;
   format?: Record<string, string | number | boolean>;
   label: string;
+  /** One-line sub-note rendered below the value (amber card only). */
+  sub?: string;
   amber?: boolean;
 }
 
@@ -331,7 +336,8 @@ const PROOF: ProofStat[] = [
     value: 10.12,
     prefix: '$',
     format: { minimumFractionDigits: 2, maximumFractionDigits: 2 },
-    label: 'local power vs $6,044.48 cloud',
+    label: 'local power cost',
+    sub: 'vs $6,044.48 cloud API',
     amber: true,
   },
 ];
@@ -343,13 +349,13 @@ function ProofStrip() {
   return (
     <div
       ref={ref}
-      className="mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-black/10 bg-black/10 lg:grid-cols-4"
+      className="mt-6 grid grid-cols-1 divide-y divide-black/10 rounded-[3px] border border-black/10 bg-white sm:grid-cols-2 sm:divide-y-0 sm:divide-x lg:grid-cols-4"
     >
       <NumberFlowGroup>
         {PROOF.map((m) => (
-          <div key={m.label} className="min-w-0 bg-white p-5 sm:p-6">
+          <div key={m.label} className="flex min-w-0 flex-col justify-center p-5 sm:p-6">
             <p
-              className={`font-mono text-[10.5px] uppercase tracking-[0.12em] ${
+              className={`whitespace-nowrap font-mono text-[10.5px] uppercase tracking-[0.12em] ${
                 m.amber ? 'text-[#E04F00]' : 'text-[#6C7484]'
               }`}
             >
@@ -369,9 +375,9 @@ function ProofStrip() {
                   m.amber ? 'text-[#E04F00]' : 'text-[#101319]'
                 }`}
               />
-              {m.amber && (
+              {m.sub && (
                 <p className="mt-1.5 font-mono text-[11px] text-[#6C7484]">
-                  $6,044.48 would be the cloud bill
+                  {m.sub}
                 </p>
               )}
             </motion.div>

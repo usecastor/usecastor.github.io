@@ -58,9 +58,11 @@
   /* ── Field-guide structural primitives ───────────────
      Continuous vertical guide rails, specimen caption bars, the
      asymmetric editorial spread, and machined card geometry. The rail
-     opacity + inset are the only knobs; color follows currentColor. */
-  --field-rail-opacity: 0.11;
-  --field-rail-inset: clamp(12px, 3vw, 48px);
+     opacity + inset are the only knobs; color follows currentColor.
+     Inset keeps the rails in the outer viewport gutters so they never
+     cut through max-w-5xl / max-w-6xl content at 1280–1440px. */
+  --field-rail-opacity: 0.08;
+  --field-rail-inset: clamp(8px, 1.5vw, 24px);
   --field-radius: 3px;
   --field-measure: 42ch;
 
