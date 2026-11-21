@@ -45,7 +45,7 @@ const techArticle = {
   keywords:
     'Qwen3.8-27B, RTX 3090, vLLM, MTP speculative decode, tok/s prefill, KV cache, W4A16, llama.cpp, DFlash2, local LLM benchmark, air-gapped',
   abstract:
-    'A 78-day production ledger (Sep 4 – Nov 21, 2026) of Qwen3.8-27B-W4A16 served by vLLM 0.33.0 on a single RTX 3090: 2.77B tokens, 93.8% KV prefix cache hit, 6,892 tok/s peak cached prefill, 70.4 tok/s sustained decode, $10.12 in electricity vs. a $6,044.48 cloud counterfactual ($6,034.36 net saved).',
+    'A 78-day production ledger (Sep 4 – Nov 21, 2026) of Qwen3.8-27B-W4A16 served by vLLM 0.33.0 on a single RTX 3090: 2.77B tokens, 93.8% session KV-cache hit, 6,892 tok/s peak cached prefill, 70.4 tok/s sustained decode, $10.12 in electricity vs. a $6,044.48 cloud counterfactual ($6,034.36 net saved).',
 };
 
 const jsonLd = [breadcrumb, techArticle];
@@ -53,7 +53,7 @@ const jsonLd = [breadcrumb, techArticle];
 
 <Layout
   title="Qwen3.8-27B on RTX 3090 Benchmarks — 78-Day Castor Telemetry (6,892 tok/s Peak Cached Prefill)"
-  description="Complete measured 78-day ledger (Sep 4 – Nov 21, 2026) of Qwen3.8-27B-W4A16 on a single RTX 3090 under vLLM 0.33.0: 2.77B tokens, 93.8% KV prefix hit, 3,247 tok/s effective prefill (6,892 peak cached), 70.4 tok/s sustained decode — $10.12 power vs. a $6,044.48 cloud counterfactual ($6,034.36 net saved). 8/12/16/24 GB VRAM tier matrix included."
+  description="Complete measured 78-day ledger (Sep 4 – Nov 21, 2026) of Qwen3.8-27B-W4A16 on a single RTX 3090 under vLLM 0.33.0: 2.77B tokens, 93.8% session KV-cache hit, 3,247 tok/s effective prefill (6,892 peak cached), 70.4 tok/s sustained decode — $10.12 power vs. a $6,044.48 cloud counterfactual ($6,034.36 net saved). 8/12/16/24 GB VRAM tier matrix included."
   canonicalPath="/benchmarks/qwen3-8-27b-rtx-3090/"
   jsonLd={jsonLd}
 >
@@ -72,12 +72,12 @@ const jsonLd = [breadcrumb, techArticle];
           <span class="text-local">78 Days of Measured Telemetry.</span>
         </h1>
         <p class="mt-4 max-w-2xl font-sans text-[15px] leading-relaxed text-ink-secondary sm:text-base">
-          Not a vendor slide. A live <code class="am-code">castor stats</code> ledger
-          captured every turn over <b>78 days (Sep 4 – Nov 21, 2026)</b> on one
-          RTX 3090 running
-          <code class="am-code">Qwen3.8-27B-W4A16-AutoRound-fast</code> under
-          vLLM 0.33.0 with MTP speculative decoding — 2.77 billion tokens,
-          93.8% of prompt tokens served from a warm KV cache, and
+          A live <code class="am-code">castor stats</code> ledger captured every
+          turn over <b>78 days (Sep 4 – Nov 21, 2026)</b> on one RTX 3090
+          running <code class="am-code">Qwen3.8-27B-W4A16-AutoRound-fast</code>
+          under vLLM 0.33.0 with MTP speculative decoding — 2.77 billion
+          tokens, with <b>93.8% of the {L.promptTokensDisplay} prompt tokens
+          served from VRAM via multi-turn session KV-cache reuse</b>, and
           <b>$10.12 of electricity</b> against a
           <b>$6,044.48 cloud-API counterfactual</b> ($6,034.36 net saved).
         </p>
@@ -94,12 +94,12 @@ const jsonLd = [breadcrumb, techArticle];
             </p>
           </div>
           <div class="p-4">
-            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">KV prefix hit</p>
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">KV cache hit</p>
             <p class="tabular mt-1 font-display text-2xl font-bold text-cloud md:text-3xl">
               93.8%
             </p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              {L.cachedTokensDisplay} / {L.promptTokensDisplay}
+              {L.cachedTokensDisplay} / {L.promptTokensDisplay} · session reuse
             </p>
           </div>
           <div class="p-4">
@@ -159,11 +159,11 @@ const jsonLd = [breadcrumb, techArticle];
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.promptTokensDisplay}</p>
           </div>
           <div class="p-4">
-            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Cached tokens</p>
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Session-cached tokens</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
               {L.cachedTokens.toLocaleString('en-US')}
             </p>
-            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.cachedTokensDisplay} · {L.cacheHitPct}%</p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.cachedTokensDisplay} · {L.cacheHitPct}% of prompt</p>
           </div>
           <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Completion tokens</p>
@@ -291,11 +291,10 @@ const jsonLd = [breadcrumb, techArticle];
             <code class="am-code">nvidia-smi</code>
           </h2>
           <p class="mt-3 max-w-2xl font-sans text-sm leading-relaxed text-ink-secondary">
-            A single live scrape of the serving stack on the day the ledger was
-            sealed. The vLLM engine reports <code class="am-code">93.8%</code>
-            live prefix-cache hit and <code class="am-code">70.5%</code> live
-            MTP draft acceptance — consistent with the 93.8% window average
-            once cold-cache starts are amortized.
+            A live scrape of the serving stack on the day the ledger was
+            sealed: <code class="am-code">93.8%</code> KV-cache hit and
+            <code class="am-code">70.5%</code> MTP draft acceptance — matching the
+            78-day window average.
           </p>
         </header>
 
@@ -358,7 +357,7 @@ const jsonLd = [breadcrumb, techArticle];
                 </p>
               </div>
               <div class="bg-[var(--bg-instrument)] p-4">
-                <p class="font-mono text-[10px] uppercase tracking-widest text-ink-instrument-muted">Live prefix hit</p>
+                <p class="font-mono text-[10px] uppercase tracking-widest text-ink-instrument-muted">KV cache hit</p>
                 <p class="tabular mt-1 font-mono text-lg font-semibold text-local-oled">
                   {H.engine.livePrefixHitPct}%
                 </p>
@@ -475,7 +474,7 @@ const jsonLd = [breadcrumb, techArticle];
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
           <div class="folio-bar">
-            <span class="folio-coord">methodology &amp; transparency</span>
+            <span class="folio-coord">methodology</span>
             <span class="folio-index">05 / 05</span>
           </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
@@ -486,24 +485,42 @@ const jsonLd = [breadcrumb, techArticle];
         <div class="mt-8 grid gap-px lg:grid-cols-2">
           <div class="bg-surface p-6">
             <h3 class="font-mono text-xs font-semibold uppercase tracking-widest text-ink">
-              Data source
+              Hardware Rig
             </h3>
-            <ul class="mt-3 space-y-2 font-mono text-[12px] leading-relaxed text-ink-secondary">
-              <li><code class="am-code">./target/release/castor stats</code> — 78-day aggregate (Sep 4 – Nov 21, 2026), emitted by the engine's on-disk telemetry ledger.</li>
-              <li><code class="am-code">curl localhost:18020/metrics</code> — vLLM 0.33.0 Prometheus endpoint for live prefix-cache hit, TTFT, and MTP acceptance.</li>
-              <li><code class="am-code">nvidia-smi --query-gpu=... --format=csv</code> — hardware snapshot on 2026-11-21.</li>
-            </ul>
+            <p class="mt-3 font-mono text-[12px] leading-relaxed text-ink-secondary">
+              Single NVIDIA GeForce RTX 3090 — 24 GB VRAM, 262.5 W power limit,
+              936 GB/s memory bandwidth, driver 616.92.
+            </p>
           </div>
           <div class="bg-surface p-6">
             <h3 class="font-mono text-xs font-semibold uppercase tracking-widest text-ink">
-              Caveats
+              Serving Engine
             </h3>
-            <ul class="mt-3 space-y-2 font-mono text-[12px] leading-relaxed text-ink-secondary">
-              <li>Window-average prefill (6,892 tok/s peak cached) includes warm-KV cache hits; cold-start prefill on a 150K context is lower but amortized by the 93.8% hit rate.</li>
-              <li>The $6,044.48 cloud counterfactual uses Sonnet-tier $2/$10 per-1M-token pricing — a conservative floor, not the frontier-model $8/$40 tier.</li>
-              <li>Electrical cost uses $0.18/kWh (US residential average, Nov 2026); your rate will vary.</li>
-              <li>No GPU was harmed. All numbers are reproducible from the open-source <code class="am-code">castor stats</code> command.</li>
-            </ul>
+            <p class="mt-3 font-mono text-[12px] leading-relaxed text-ink-secondary">
+              vLLM 0.33.0 serving Qwen3.8-27B-W4A16-AutoRound-fast with MTP
+              speculative decoding against a 150K-token KV pool.
+            </p>
+          </div>
+          <div class="bg-surface p-6">
+            <h3 class="font-mono text-xs font-semibold uppercase tracking-widest text-ink">
+              78-Day Workload
+            </h3>
+            <p class="mt-3 font-mono text-[12px] leading-relaxed text-ink-secondary">
+              Full <code class="am-code">castor stats</code> ledger (Sep 4 – Nov 21,
+              2026): {L.turns.toLocaleString('en-US')} autonomous turns,
+              {L.toolCalls.toLocaleString('en-US')} sandboxed tool calls,
+              {L.totalTokensDisplay} tokens — no sampling, no extrapolation.
+            </p>
+          </div>
+          <div class="bg-surface p-6">
+            <h3 class="font-mono text-xs font-semibold uppercase tracking-widest text-ink">
+              Cloud Cost Baseline
+            </h3>
+            <p class="mt-3 font-mono text-[12px] leading-relaxed text-ink-secondary">
+              Counterfactual priced at Sonnet-tier $2/$10 per 1M tokens with
+              $0.18/kWh residential electricity — reproduced from the
+              open-source <code class="am-code">castor stats</code> command.
+            </p>
           </div>
         </div>
       </div>

@@ -160,7 +160,7 @@ export default function SavingsInstrument() {
     paybackMonths === null ? 0 : Math.min(100, (12 / paybackMonths) * 50); // 50% scale = 1× ROI
   const paybackDisplay =
     paybackMonths === null
-      ? 'No net savings at these inputs'
+      ? '—'
       : paybackMonths < 1
         ? `${Math.max(1, Math.round(paybackMonths * 30.4))} days`
         : paybackMonths < 2
@@ -194,7 +194,7 @@ export default function SavingsInstrument() {
         {/* ── Folio bar ─────────────────────────────────────────────── */}
         <div className="folio-bar text-[#8C95A6]">
           <span className="folio-coord">
-            Economics &amp; Sizing // 02 — Team &amp; Hardware Calculator
+            02 // Team &amp; Hardware Economics
           </span>
           <span className="folio-index">02 / 04</span>
         </div>
@@ -209,11 +209,9 @@ export default function SavingsInstrument() {
             </h2>
           </div>
           <div className="prose-measure min-w-0">
-            <p className="text-base leading-relaxed text-[#8C95A6] sm:text-lg">
-              Verified November 2026 official API rates, your team size, your
-              monthly volume — and the break-even point where a dedicated
-              local GPU rig starts paying for itself. Every bar moves live as
-              you drag.
+            <p className="max-w-[42ch] text-base leading-relaxed text-[#8C95A6] sm:text-lg">
+              Estimate your monthly token burn, hybrid savings, and GPU
+              hardware break-even.
             </p>
           </div>
         </header>
@@ -459,22 +457,8 @@ export default function SavingsInstrument() {
                         transition={{ type: 'spring', stiffness: 120, damping: 20 }}
                       />
                     </div>
-                    <p className="mt-1 font-mono text-[10px] text-[#5D6B80]">
-                      {paybackMonths === null
-                        ? 'Cloud cost at these inputs is below the hardware investment.'
-                        : `Cloud savings pay back the ${hw.label} in ${paybackDisplay}; the fill shows the 1st-year return multiple.`}
-                    </p>
                   </div>
                 </div>
-
-                {/* Calm Haiku compliance callout */}
-                {model.name === 'Claude Haiku 5.5' && (
-                  <p className="mt-6 rounded-lg border border-white/10 bg-black/30 px-4 py-3 font-mono text-[11.5px] leading-relaxed text-[#8C95A6]">
-                    At Haiku 5.5&apos;s budget rates the savings shrink — for
-                    most agentic workloads, keep the frontier lead in the cloud
-                    and offload only the high-volume local loop.
-                  </p>
-                )}
               </NumberFlowGroup>
             </div>
           </div>

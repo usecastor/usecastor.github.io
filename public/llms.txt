@@ -12,7 +12,7 @@
 ## Key Numbers (verified 2026-11-21)
 
 - 2.77B total tokens over 78 days (Sep 4 – Nov 21, 2026)
-- 93.8% KV prefix cache hit (2.53B cached / 2.71B prompt tokens)
+- 93.8% session KV-cache hit (2.53B of 2.71B prompt tokens reused from VRAM across multi-turn sessions)
 - 49,414 autonomous turns · 1,187 sessions · 67,506 sandboxed tool calls (97.0% success)
 - 70.4 tok/s sustained single-stream decode (75.5 tok/s peak n=1)
 - 260 tok/s aggregate decode across n=4 concurrent streams sharing a warm KV prefix
@@ -37,7 +37,7 @@
 - **Open-Source Engine** — Castor Core, AGPL-3.0, free; stdio-only MCP over a zero-egress loopback boundary.
 - **$1,500 48-Hour GPU & vLLM Setup Sprint** — turnkey dedicated-hardware stand-up: vLLM / KV-cache / MTP-DFlash2 tuning, sandbox hardening, benchmark + egress-audit handoff.
 - **Custom Agent Workflow Plumbing** — agent orchestration, sandbox & shell-policy hardening, and team IDE rollout wired into the tool loop your agents already run.
-- **Air-Gapped On-Prem Pilot** — fixed-scope 10–50 seat compliance pilot (NIST 800-171 / CMMC Level 2 / ITAR / SCIF) with commercial dual-license and a per-task audit ledger, priced below the Copilot anchor.
+- **Air-Gapped On-Prem Pilot** — fixed-scope 10–50 seat compliance pilot (NIST 800-171 / CMMC Level 2 / ITAR / SCIF) with commercial dual-license and a per-task audit ledger, over a fixed 1–3 month scope.
 
 ## Architecture
 

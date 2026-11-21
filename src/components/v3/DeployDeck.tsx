@@ -46,6 +46,9 @@ interface FrontDef {
   num: string;
   title: string;
   price: string;
+  /** One-line summary, max ~14 words. */
+  summary: string;
+  /** Three short 5–7 word bullets. */
   bullets: string[];
   cmd?: string;
   dark?: boolean;
@@ -58,10 +61,11 @@ const FRONTS: FrontDef[] = [
     title: 'Open-Source Engine',
     price: '$0 · AGPL-3.0',
     cmd: INSTALL_CMD,
+    summary: 'The Castor MCP engine, one command.',
     bullets: [
-      '3 MCP tools + 5-layer sandbox',
+      '3 MCP tools, 5-layer sandbox',
       '27-grammar AST syntax gate',
-      'vLLM / llama.cpp / Ollama profiles',
+      'vLLM, llama.cpp, Ollama profiles',
     ],
   },
   {
@@ -69,10 +73,11 @@ const FRONTS: FrontDef[] = [
     num: 'Front 02',
     title: 'Turnkey GPU & vLLM Setup',
     price: '$1,500 · 48-Hour Sprint',
+    summary: 'GPU sizing through 260 tok/s, in 48 hours.',
     bullets: [
       'Hardware & W4A16 quantization sizing',
-      'vLLM continuous batching — 260 tok/s at n=4',
-      'Prefix-cache pinning + Claude Code / Cursor team routing',
+      'vLLM continuous batching, n=4',
+      'Team routing for Claude Code',
     ],
   },
   {
@@ -80,10 +85,11 @@ const FRONTS: FrontDef[] = [
     num: 'Front 03',
     title: 'Custom Agent & Workflow Plumbing',
     price: 'Scoped Build / Retainer',
+    summary: 'Your stack, wired to your agents.',
     bullets: [
-      'Multi-developer shared GPU pool routing',
-      'Custom tool sandboxes & repo-specific AST gates',
-      'CI evaluation pipelines for agent work',
+      'Shared multi-seat GPU pool',
+      'Custom sandboxed agent tooling',
+      'CI pipelines for agent work',
     ],
   },
   {
@@ -92,10 +98,11 @@ const FRONTS: FrontDef[] = [
     title: 'Private & Air-Gapped On-Prem',
     price: 'Regulated Pilot',
     dark: true,
+    summary: 'Zero-egress, audit-evidenced, on your hardware.',
     bullets: [
-      '100% local-only, zero-egress deployment',
-      '5-layer OS sandboxing + per-task audit ledgers',
-      'SOC 2 / ISO 27001 / CMMC / HIPAA evidence mapping',
+      '100% local, zero-egress deployment',
+      '5-layer OS sandbox, audit ledger',
+      'SOC 2, ISO 27001 evidence',
     ],
   },
 ];
@@ -191,8 +198,8 @@ function BriefBuilder({ econ }: { econ: EconomicsUpdateDetail | null }) {
           Scope &amp; Engagement Brief Builder
         </h3>
         <p className="mt-1 text-[13px] text-[#4A5568]">
-          Pick your front, team size, and GPU status — then copy the brief or
-          launch a pre-filled email. Takes 20 seconds.
+          Pick your front, team size, and GPU status — copy the brief or
+          launch a pre-filled email.
         </p>
       </div>
 
@@ -363,7 +370,7 @@ export default function DeployDeck() {
         {/* ── Folio bar ─────────────────────────────────────────────── */}
         <div className="folio-bar">
           <span className="folio-coord">
-            Engagements // 03 — Self-Serve or Done-For-You Plumbing
+            03 // Self-Serve &amp; Team Engagements
           </span>
           <span className="folio-index">03 / 04</span>
         </div>
@@ -378,11 +385,9 @@ export default function DeployDeck() {
             </h2>
           </div>
           <div className="prose-measure min-w-0">
-            <p className="text-base leading-relaxed text-[#4A5568] sm:text-lg">
-              Four fronts, one decision: take the open-source engine and go,
-              or have us do the GPU sizing, vLLM tuning, and agent plumbing
-              for you — including a full air-gapped on-prem deployment for
-              regulated teams.
+            <p className="max-w-[42ch] text-base leading-relaxed text-[#4A5568] sm:text-lg">
+              Open-source for individual engineers. Fixed-scope GPU setup,
+              vLLM tuning, and custom plumbing for teams.
             </p>
           </div>
         </header>
@@ -442,6 +447,13 @@ export default function DeployDeck() {
                   }`}
                 >
                   {f.price}
+                </p>
+                <p
+                  className={`mt-3 text-[13.5px] leading-relaxed ${
+                    f.dark ? 'text-[#C7D0DE]' : 'text-[#374151]'
+                  }`}
+                >
+                  {f.summary}
                 </p>
 
                 {/* Front 01: the exact install command in a monospace box */}

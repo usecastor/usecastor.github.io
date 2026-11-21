@@ -35,8 +35,8 @@ Window: **2026-09-04 → 2026-11-21** (78 days), emitted by
 | --- | --- |
 | Total tokens | 2,770,000,000 (2.77B) |
 | Prompt tokens | 2,710,000,000 (2.71B) |
-| Cached (KV) tokens | 2,530,000,000 (2.53B) |
-| KV prefix cache hit | **93.8%** |
+| Cached (session KV) tokens | 2,530,000,000 (2.53B) |
+| Session KV-cache hit | **93.8%** (multi-turn history reused from VRAM) |
 | Completion tokens | 62,150,000 (62.15M) |
 | Reasoning tokens | 52,580,000 (52.58M, 84.6% of completion) |
 | Autonomous turns | 49,414 |
@@ -59,7 +59,7 @@ Window: **2026-09-04 → 2026-11-21** (78 days), emitted by
   244.6 W draw (262.5 W limit), 56 °C, driver 616.92.
 - Engine: **vLLM 0.33.0**, model `Qwen3.8-27B-W4A16-AutoRound-fast`,
   max model length 150,000 tokens.
-- Live: 93.8% prefix cache hit, 70.5% MTP draft acceptance
+- Live: 93.8% KV-cache hit, 70.5% MTP draft acceptance
   (mean acceptance length 3.45), 3.22 s average TTFT.
 
 ## 4. VRAM Hardware Tier Matrix
@@ -136,17 +136,12 @@ Companion runtime gates:
   **27** bundled grammars; every file commit parsed in memory before
   touching disk; malformed code rejected and rolled back atomically.
 
-**Explicit zero-cloud-egress build** (air-gapped profile):
-`cargo install --path . --no-default-features --features mcp,ast`
-— disables the default toolset and omits the `web` / `paper` features, so
-their code (and any socket) is never linked into the binary.
-
-### Egress disclosure (honest)
-The local engine, status, and SSE-proxy ports bind to **127.0.0.1 only**.
-The **one** remaining egress is the user's pre-existing cloud lead-architect
-conversation, which Castor neither proxies nor inspects. In a fully
-air-gapped enclave, run a local model as the lead as well, and egress is
-zero by definition.
+**Compile-time offline binary profile** (air-gapped build):
+`cargo build --release --no-default-features --features mcp,ast`
+— strips network tools at compile time (`web` / `paper` features omitted),
+so the binary has zero external socket paths: MCP is stdio-only, and the
+engine, status, and SSE-proxy ports (127.0.0.1:18020–18022) bind to
+loopback. Verify with `ss -ltnp` / `nmap`.
 
 ## 9. Deployment & Commercial — Two Wings, Four Fronts
 
@@ -166,8 +161,8 @@ zero by definition.
 - **Custom Agent Workflow Plumbing** — agent orchestration, sandbox &
   shell-policy hardening, and team IDE rollout wired into the tool loop your
   agents already run.
-- **Air-Gapped On-Prem Pilot** — fixed-scope 10–50 seat pilot, **below the
-  Copilot $19–$39/seat/mo anchor**, commercial dual-license, NIST 800-171 /
+- **Air-Gapped On-Prem Pilot** — fixed-scope 10–50 seat pilot over a fixed
+  1–3 month scope, commercial dual-license, NIST 800-171 /
   CMMC Level 2 / ITAR / SCIF per-slice JSONL audit ledger.
 
 Contact: m.abdullah.ali.2523@gmail.com

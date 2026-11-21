@@ -170,7 +170,7 @@ export const LEDGER_76DAY: Ledger76Day = {
   effectivePrefillTps: 3_247,
   peakCachedPrefillTps: 6_892,
   benchmarkNote:
-    '260 tok/s is the proven aggregate decode across n=4 concurrent streams sharing a warm KV prefix (24 GB VRAM RTX 3090, Qwen3.8-27B W4A16, 936 GB/s bandwidth). Single-stream decode sustains 70.4 tok/s (75.5 tok/s peak).',
+    '260 tok/s aggregate decode across n=4 concurrent streams sharing a warm KV prefix. Single-stream decode: 70.4 tok/s sustained, 75.5 tok/s peak.',
   cloudCounterfactualUsd: 6_044.48,
   electricityUsd: 10.12,
   electricityKwh: 56.2,

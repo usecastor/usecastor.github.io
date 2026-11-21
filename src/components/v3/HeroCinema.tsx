@@ -325,8 +325,8 @@ function InstallerBar() {
  * value is pre-laid-out text or canvas pixels, and mode switches
  * (n=4 ↔ n=1) only change what is drawn — never the box.
  *
- *   n=4 (default): 4 parallel lanes streaming simultaneously from one
- *                  shared warm KV prefix — ~65–70 tok/s per lane =
+ *   n=4 (default): 4 parallel lanes streaming simultaneously from the
+ *                  session KV cache — ~65–70 tok/s per lane =
  *                  260 tok/s aggregate (the proven n=4 figure).
  *   n=1:           one expanded lane, 4 sequential SSE lines, 70.4 tok/s.
  *
@@ -657,15 +657,15 @@ function SSEStreamer() {
           animation: reduced ? undefined : 'border-beam 7s linear infinite',
         }}
         role="figure"
-        aria-label="Castor SSE streaming instrument: n=4 concurrent agent streams from one warm KV prefix at 260 tokens per second aggregate"
+        aria-label="Castor SSE streaming instrument: n=4 concurrent agent streams from the session KV cache at 260 tokens per second aggregate"
       >
         <div className="flex flex-col overflow-hidden rounded-[11px] bg-[#0A0D14]">
           {/* ── Top instrument bar ─────────────────────────────────── */}
           <div className="flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-5">
-            {/* Pinned shared prefix */}
+            {/* Session KV cache readout */}
             <p className="font-mono text-[10.5px] tracking-[0.05em] text-[#8C95A6] sm:text-[11px]">
-              <span className="text-[#FB923C]">VRAM PREFIX:</span>{' '}
-              148.4K TOKENS · 93.8% WARM KV HIT
+              <span className="text-[#FB923C]">SESSION KV CACHE</span>{' '}
+              · 93.8% HIT · RTX 3090 (W4A16)
             </p>
 
             {/* 2-mode concurrency toggle + pause/resume */}
@@ -714,11 +714,9 @@ function SSEStreamer() {
               </button>
             </div>
 
-            {/* Wing indicator badge */}
+            {/* Deployment-mode badge */}
             <span className="w-full rounded-full border border-[#3B82F6]/40 bg-[#3B82F6]/10 px-3 py-1 text-left font-mono text-[10px] uppercase tracking-[0.1em] text-[#7FA6FF] sm:ml-2 sm:w-auto sm:text-center">
-              {mode === 4
-                ? 'Wing 01: Hybrid Cloud+Local'
-                : 'Wing 02: 100% Local (0 B Egress)'}
+              Hybrid or 100% Local
             </span>
           </div>
 
@@ -747,7 +745,7 @@ function SSEStreamer() {
               </div>
               <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
-                  Decode Throughput
+                  Decode (n=4 / n=1)
                 </p>
                 <SafeNumberFlow
                   value={aggregateTps}
@@ -755,12 +753,12 @@ function SSEStreamer() {
                   className="mt-0.5 font-mono text-[14px] font-semibold text-[#F5F7FA] sm:text-[15px]"
                 />
                 <span className="ml-1 font-mono text-[10.5px] text-[#5D6B80]">
-                  tok/s ({mode === 4 ? 'n=4 aggregate' : 'n=1 stream'})
+                  tok/s
                 </span>
               </div>
               <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
-                  Warm KV Reuse
+                  Session KV Hit
                 </p>
                 <SafeNumberFlow
                   value={LEDGER_76DAY.cacheHitPct}
@@ -774,14 +772,14 @@ function SSEStreamer() {
               </div>
               <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
-                  Task Cost
+                  Local GPU Cost
                 </p>
                 <span className="mt-0.5 font-mono text-[14px] font-semibold text-[#FB923C] sm:text-[15px]">
-                  $0.0000 local
+                  $0.0000
                 </span>
                 <span className="ml-2 font-mono text-[10.5px] text-[#5D6B80]">
                   <span className="line-through whitespace-nowrap decoration-[#FB923C]/60">
-                    $1.42 cloud API
+                    $1.42 cloud
                   </span>
                 </span>
               </div>
@@ -883,12 +881,10 @@ export default function HeroCinema() {
               Put your local GPU to work.
             </span>
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-[15px] text-[#A3AEBF] sm:text-lg">
-            Two ways to run your coding agents. Pair Claude Code, Cursor, or
-            Gemini with your own GPU and cut your token bill by over 90% —
-            or run 100% local and private with zero cloud egress. And for
-            teams, we handle the turnkey GPU setup, vLLM tuning, and custom
-            agent plumbing.
+          <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-[#A3AEBF] sm:text-lg">
+            Pair Claude Code, Cursor, or Gemini with your own GPU — or run
+            100% local and air-gapped. Open-source engine, plus turnkey GPU
+            &amp; vLLM setup for teams.
           </p>
         </div>
 
