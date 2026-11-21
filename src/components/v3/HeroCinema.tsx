@@ -723,7 +723,15 @@ function SSEStreamer() {
               · 93.8% HIT · RTX 3090 (W4A16)
             </p>
 
-            {/* 2-mode concurrency toggle + pause / stream control */}
+            {/* 2-mode concurrency toggle + pause / stream control.
+                On 390px mobile the bar has only ~324px of usable width, so
+                the three controls must be compact: `flex-wrap` lets the group
+                drop to a clean second row if a very narrow viewport still
+                doesn't fit, and the n=4 / n=1 buttons show a compact label
+                (`n=4 · 260` / `n=1 · 70.4`) on mobile that expands to the
+                full `Parallel` / `Single · X tok/s` phrasing from `sm` up —
+                keeping all three buttons inside the container with zero
+                right-edge clipping at 390px. */}
             <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
               <div
                 role="group"
@@ -740,7 +748,10 @@ function SSEStreamer() {
                       : 'text-[#8C95A6] hover:text-[#F5F7FA]'
                   }`}
                 >
-                  n=4 Parallel · 260 tok/s
+                  n=4<span className="hidden sm:inline"> Parallel </span>
+                  <span className="sm:hidden">·</span>
+                  260<span className="sm:hidden"> tok/s</span>
+                  <span className="hidden sm:inline"> tok/s</span>
                 </button>
                 <button
                   type="button"
@@ -752,7 +763,10 @@ function SSEStreamer() {
                       : 'text-[#8C95A6] hover:text-[#F5F7FA]'
                   }`}
                 >
-                  n=1 Single · 70.4 tok/s
+                  n=1<span className="hidden sm:inline"> Single </span>
+                  <span className="sm:hidden">·</span>
+                  70.4<span className="sm:hidden"> tok/s</span>
+                  <span className="hidden sm:inline"> tok/s</span>
                 </button>
               </div>
               <button
@@ -768,7 +782,8 @@ function SSEStreamer() {
                 {paused ? (
                   <>
                     <Play size={13} strokeWidth={2.5} />
-                    <span className="whitespace-nowrap">Resume Live Stream</span>
+                    <span className="whitespace-nowrap sm:hidden">Resume</span>
+                    <span className="whitespace-nowrap hidden sm:inline">Resume Live Stream</span>
                   </>
                 ) : (
                   <>
