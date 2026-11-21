@@ -201,7 +201,7 @@ function TopologySurveyCanvas() {
 
   return (
     <div ref={wrapRef} className="absolute inset-0" aria-hidden="true">
-      <canvas ref={canvasRef} className="h-full w-full opacity-70" />
+      <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full opacity-55" />
     </div>
   );
 }
@@ -874,7 +874,7 @@ export default function HeroCinema() {
       <div className="relative mx-auto max-w-5xl px-4 sm:px-6">
         <div className="mx-auto max-w-5xl text-center">
           <h1
-            className="font-display text-[clamp(2.15rem,4.25vw,3.9rem)] font-bold leading-[1.02] tracking-[-0.038em] text-[#F5F7FA]"
+            className="font-display text-[clamp(1.85rem,4.25vw,3.85rem)] font-bold leading-[1.02] tracking-[-0.038em] text-[#F5F7FA]"
           >
             {'Keep your frontier model. '}
             <span className="block text-[#FB923C]">
