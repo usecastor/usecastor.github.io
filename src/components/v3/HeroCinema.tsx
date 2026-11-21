@@ -145,27 +145,6 @@ function InstallerBar() {
   );
 }
 
-/* ── Reduced-motion hook (hydration-safe) ──────────────────────────────
- * Initializes to `false` (identical to SSR) and only reads/subscribes to
- * `window.matchMedia('(prefers-reduced-motion: reduce)')` inside
- * `useEffect` — so the first client hydration pass can never diverge
- * from the server render (no React #418). Used to seed the stream's
- * initial `paused` state, not to hard-stop it: the user's Pause / Stream
- * button remains the single source of truth for whether the stream runs.
- */
-function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduced(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-  return reduced;
-}
-
 /* ── Authentic LLM token-by-token streamer ─────────────────────────────
  * A fixed-height DOM "terminal" that emits REAL sub-word token chunks,
  * lines, code, and tool calls at authentic high-speed LLM cadence —
@@ -178,11 +157,9 @@ function usePrefersReducedMotion(): boolean {
  * window (the most recent ~18 lines stay mounted). When a task finishes
  * (`✓ tests passed`), a brief `---` separator line appears and the next
  * task's prompt immediately starts streaming from the bottom — infinite,
- * with zero dead pauses and zero jarring resets.
- *
- * Under `prefers-reduced-motion: reduce` the stream starts paused with a
- * crisp amber "▶ Resume Live Stream" button (never a silently-frozen
- * counter) — resuming is an explicit user choice.
+ * with zero dead pauses and zero jarring resets. The stream always starts
+ * live (auto-streaming on initial page load); the user's Pause / Stream
+ * button is the single manual control.
  */
 
 type LineKind =
@@ -234,6 +211,7 @@ interface PaneState {
   lifetime: number; // total tokens emitted (monotonic — never resets)
   delay: number; // seconds of stagger before this pane starts
   buffer: Array<{ kind: LineKind; text: string }>; // recent completed lines
+  makeInitial: () => PaneState; // pure per-pane factory (used to guard reads)
 }
 
 const N1_RATE = LEDGER_76DAY.sustainedDecodeTps; // 70.4 tok/s
@@ -459,20 +437,26 @@ const SINGLE_PANE: PaneSpec = {
 /* ── Pure deterministic state builder (SSR === first client render) ───
    Pre-emits each pane's first prompt line so the terminal reads as a live
    console from the very first frame — identical on the server and the first
-   client paint (no clock, no randomness). */
+   client paint (no clock, no randomness). Each PaneState also carries a
+   pure `makeInitial` factory (capturing its own pane) so a missing/stale
+   slot can be regenerated synchronously during render or the rAF advance —
+   this is what makes rapid n=1 ↔ n=4 toggling throw-free. */
+function makeInitialFor(pane: PaneSpec): PaneState {
+  const first = pane.tasks[0].lines[0];
+  const st: PaneState = {
+    taskIdx: 0,
+    lineIdx: 1,
+    tokenInLine: 0,
+    lifetime: first.tokens,
+    delay: pane.startOffsetS,
+    buffer: [{ kind: first.kind, text: renderPartial(first, first.tokens) }],
+    makeInitial: () => makeInitialFor(pane),
+  };
+  return st;
+}
+
 function initStates(panes: PaneSpec[]): PaneState[] {
-  return panes.map((p) => {
-    const first = p.tasks[0].lines[0];
-    const st: PaneState = {
-      taskIdx: 0,
-      lineIdx: 1,
-      tokenInLine: 0,
-      lifetime: first.tokens,
-      delay: p.startOffsetS,
-      buffer: [{ kind: first.kind, text: renderPartial(first, first.tokens) }],
-    };
-    return st;
-  });
+  return panes.map((p) => makeInitialFor(p));
 }
 
 /** Advance one pane's stream cursor by `dt` seconds (mutates in place). */
@@ -574,14 +558,19 @@ function Pane({
   wide: boolean; // n=1 expanded stream
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const task = pane.tasks[st.taskIdx];
-  const activeLine = task.lines[st.lineIdx];
-  const activeText = renderPartial(activeLine, st.tokenInLine);
+  // Guard: a slot can be undefined/transiently stale the instant the
+  // concurrency mode flips (the rAF resize lands after this render). Fall
+  // back to a freshly-built initial state and clamp every index into its
+  // valid range so a rapid n=1 → n=4 (or reverse) toggle can never throw.
+  const state = st ?? makeInitialFor(pane);
+  const task = pane.tasks[state.taskIdx % pane.tasks.length];
+  const activeLine = task.lines[state.lineIdx % task.lines.length];
+  const activeText = renderPartial(activeLine, state.tokenInLine);
 
   // Rolling window: completed lines + the active (partially written) line.
   // When paused and the active line is still empty, omit it so a paused
   // pane never shows a dead blank row at the writing head.
-  let display = [...st.buffer];
+  let display = [...state.buffer];
   if (activeText !== '' || running) {
     display.push({ kind: activeLine.kind, text: activeText });
   }
@@ -607,7 +596,7 @@ function Pane({
 
   return (
     <div
-      className={`absolute inset-0 flex min-h-0 flex-col overflow-hidden border border-white/10 bg-[#070B12] ${paneMargin}`}
+      className={`absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-hidden border border-white/10 bg-[#070B12] ${paneMargin}`}
     >
       {/* Pane header (sticky) */}
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-2.5 py-1.5">
@@ -643,32 +632,33 @@ function Pane({
 }
 
 function SSEStreamer() {
-  const reduced = usePrefersReducedMotion();
   const [mode, setMode] = useState<1 | 4>(4);
+  // Auto-stream on initial page load: the stream is LIVE for every visitor
+  // from the very first frame. Text tokens appended into a code terminal
+  // carry no spinning / flashing / parallax motion, so we do NOT auto-pause
+  // under `prefers-reduced-motion: reduce` (which previously left the hero
+  // frozen at `45 tokens`). The Pause / Resume button stays the manual gate.
   const [paused, setPaused] = useState(false);
   const [inView, setInView] = useState(true);
   const stageRef = useRef<HTMLDivElement>(null);
 
   // One shared rAF loop drives every pane; per-pane cursors live in a ref.
   const [, setTick] = useState(0);
-  const statesRef = useRef<PaneState[] | null>(null);
 
-  // Deterministic per-mode stream states (also the SSR/first-paint value).
-  if (statesRef.current === null) {
-    statesRef.current = initStates(mode === 4 ? QUAD_PANES : [SINGLE_PANE]);
-  }
+  // Two ALWAYS-initialized, mode-scoped state arrays: n=4 → 4 cursors,
+  // n=1 → 1 cursor. Each is built exactly once (pure & deterministic —
+  // identical on the server and the first client paint) and stays fully
+  // sized at all times, so a slot for the active mode is NEVER `undefined`
+  // no matter how fast the user toggles n=4 → n=1 → n=4. (This is the fix
+  // for the `Cannot read properties of undefined (reading 'taskIdx')` crash:
+  // a single resizable array let n=4 panes read `undefined.taskIdx` on the
+  // render pass that preceded the resize effect.)
+  const n4StatesRef = useRef<PaneState[] | null>(null);
+  if (n4StatesRef.current === null) n4StatesRef.current = initStates(QUAD_PANES);
+  const n1StatesRef = useRef<PaneState[] | null>(null);
+  if (n1StatesRef.current === null) n1StatesRef.current = initStates([SINGLE_PANE]);
 
-  // Reduced motion: seed the stream in a paused state with a crisp amber
-  // "▶ Resume Live Stream" affordance — never a silently-frozen counter.
-  useEffect(() => {
-    if (reduced) setPaused(true);
-  }, [reduced]);
-
-  // Rebuild the stream cursors whenever the concurrency mode changes.
-  useEffect(() => {
-    statesRef.current = initStates(mode === 4 ? QUAD_PANES : [SINGLE_PANE]);
-    setTick((t) => t + 1);
-  }, [mode]);
+  const activeStates = mode === 4 ? n4StatesRef.current : n1StatesRef.current;
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') return;
@@ -685,20 +675,25 @@ function SSEStreamer() {
   }, []);
 
   // The user's Pause / Stream button is the sole source of truth for
-  // whether the stream runs (it is NOT hard-gated by reduced motion).
+  // whether the stream runs.
   const running = inView && !paused;
 
   useEffect(() => {
     if (!running) return;
     let raf = 0;
     let last = performance.now();
+    // Both mode arrays are always fully initialized during render, so this is
+    // non-null here; the array is mutated in place, so one capture per effect
+    // run is correct (the effect re-runs whenever `mode` or `running` changes).
+    const states = (mode === 4 ? n4StatesRef.current : n1StatesRef.current)!;
+    const panes = mode === 4 ? QUAD_PANES : [SINGLE_PANE];
     const step = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      const panes = mode === 4 ? QUAD_PANES : [SINGLE_PANE];
-      const states = statesRef.current ?? [];
+      // Advance ONLY the active mode's cursor array; its length always
+      // matches `panes.length` (4 or 1), so every slot is guaranteed set.
       for (let i = 0; i < panes.length; i++) {
-        if (states[i]) advance(panes[i], states[i], dt);
+        advance(panes[i], states[i], dt);
       }
       setTick((t) => (t + 1) % 1_000_000);
       raf = requestAnimationFrame(step);
@@ -708,8 +703,8 @@ function SSEStreamer() {
   }, [running, mode]);
 
   const panes = mode === 4 ? QUAD_PANES : [SINGLE_PANE];
-  const states = statesRef.current ?? [];
-  const aggregateTokens = states.reduce((a, s) => a + (s ? s.lifetime : 0), 0);
+  const states = activeStates;
+  const aggregateTokens = states.reduce((a, s) => a + s.lifetime, 0);
   const aggregateRate = mode === 4 ? N4_RATE : N1_RATE;
 
   return (
@@ -717,11 +712,11 @@ function SSEStreamer() {
       <div
         role="figure"
         aria-label="Castor LLM streaming window: n=4 concurrent agent streams from the session KV cache at 260 tokens per second aggregate, or n=1 single stream at 70.4 tokens per second"
-        className="overflow-hidden rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#0A0D14]"
+        className="w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-[rgba(255,255,255,0.12)] bg-[#0A0D14]"
       >
-        <div className="flex flex-col">
+        <div className="flex w-full max-w-full min-w-0 flex-col overflow-hidden">
           {/* ── Top instrument bar — single crisp horizontal row ─────── */}
-          <div className="flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-5">
+          <div className="flex w-full max-w-full min-h-[64px] min-w-0 flex-wrap items-center gap-x-4 gap-y-2 overflow-hidden border-b border-white/10 px-4 py-3 sm:px-5">
             {/* Session KV cache readout */}
             <p className="min-w-0 shrink truncate font-mono text-[10.5px] tracking-[0.05em] text-[#8C95A6] sm:text-[11px]">
               <span className="text-[#FB923C]">SESSION KV CACHE</span>{' '}
@@ -787,17 +782,20 @@ function SSEStreamer() {
 
           {/* ── Center streaming window: 480px tall on mobile (4 stacked
               rows), strictly fixed 360px stage from sm up ── */}
-          <div className="relative h-[480px] w-full shrink-0 sm:h-[360px]">
+          <div className="relative h-[480px] min-w-0 w-full shrink-0 sm:h-[360px]">
             {mode === 4 ? (
-              <div className="grid h-full w-full grid-cols-1 grid-rows-4 gap-px bg-white/10 sm:grid-cols-2 sm:grid-rows-2">
+              <div
+                key={mode}
+                className="grid h-full min-w-0 w-full grid-cols-1 grid-rows-4 gap-px bg-white/10 sm:grid-cols-2 sm:grid-rows-2"
+              >
                 {panes.map((p, i) => (
-                  <div key={p.worker} className="relative min-h-0" aria-hidden="true">
+                  <div key={p.worker} className="relative min-h-0 min-w-0" aria-hidden="true">
                     <Pane pane={p} st={states[i]} running={running} wide={false} />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="h-full w-full">
+              <div key={mode} className="h-full min-w-0 w-full">
                 <Pane pane={panes[0]} st={states[0]} running={running} wide />
               </div>
             )}
@@ -806,9 +804,9 @@ function SSEStreamer() {
           {/* ── Bottom telemetry & cloud-arbitrage comparison bar ────
               Four rock-solid live readouts — deterministic values,
               never starting at 0. */}
-          <div className="grid grid-cols-2 gap-px border-t border-white/10 bg-white/5 lg:grid-cols-4">
+          <div className="grid w-full max-w-full min-w-0 grid-cols-2 gap-px overflow-hidden border-t border-white/10 bg-white/5 lg:grid-cols-4">
             <NumberFlowGroup>
-              <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
+              <div className="min-w-0 bg-[#0A0D14] px-4 py-3 sm:px-5">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
                   Live Output
                 </p>
@@ -819,7 +817,7 @@ function SSEStreamer() {
                   tokens · {aggregateRate.toFixed(1)} tok/s
                 </span>
               </div>
-              <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
+              <div className="min-w-0 bg-[#0A0D14] px-4 py-3 sm:px-5">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
                   Decode (n=4 / n=1)
                 </p>
@@ -832,7 +830,7 @@ function SSEStreamer() {
                   tok/s
                 </span>
               </div>
-              <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
+              <div className="min-w-0 bg-[#0A0D14] px-4 py-3 sm:px-5">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
                   Session KV Hit
                 </p>
@@ -846,7 +844,7 @@ function SSEStreamer() {
                   across 2.77B tokens
                 </span>
               </div>
-              <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
+              <div className="min-w-0 bg-[#0A0D14] px-4 py-3 sm:px-5">
                 <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
                   Local GPU Cost
                 </p>
@@ -863,7 +861,7 @@ function SSEStreamer() {
           </div>
 
           {/* ── Hardware footer strip ──────────────────────────────── */}
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-white/10 bg-black/30 px-4 py-3 sm:px-5">
+          <div className="flex w-full max-w-full min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 overflow-hidden border-t border-white/10 bg-black/30 px-4 py-3 sm:px-5">
             <p className="font-mono text-[11px] tracking-[0.03em] text-[#8C95A6]">
               {HARDWARE_SNAPSHOT.gpu.model.replace('NVIDIA GeForce ', '')} (
               {Math.round(HARDWARE_SNAPSHOT.gpu.vramTotalMiB / 1024)} GB) ·{' '}
