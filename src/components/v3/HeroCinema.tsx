@@ -47,7 +47,7 @@ const CLIENTS: Array<{ id: string; label: string; cmd: string }> = [
   },
   {
     id: 'source',
-    label: 'Source (No Outbound Paper)',
+    label: 'Source (Cargo)',
     cmd: 'cargo install --path . --no-default-features --features mcp,ast',
   },
 ];
@@ -265,7 +265,7 @@ function buildTask(file: string, lines: StreamLine[]): StreamTask {
 const TS_TASKS: StreamTask[] = [
   buildTask('apps/web/auth/session.ts', [
     { kind: 'prompt', text: '> Fix the token refresh race in session.ts and run the auth suite' },
-    { kind: 'tool', text: '● read_file apps/web/auth/session.ts (212 lines)' },
+    { kind: 'tool', text: 'read_file apps/web/auth/session.ts (212 lines)' },
     { kind: 'para', text: 'Two concurrent refreshes rotate the same session twice inside the grace window.' },
     { kind: 'diff', text: 'if (await rotatedWithin(session, 30_000)) {' },
     { kind: 'diff', text: '  return cachedPair(session);' },
@@ -274,7 +274,7 @@ const TS_TASKS: StreamTask[] = [
   ]),
   buildTask('components/CheckoutForm.tsx', [
     { kind: 'prompt', text: '> Validate the checkout form card fields fully offline' },
-    { kind: 'tool', text: '● read_file components/CheckoutForm.tsx (188 lines)' },
+    { kind: 'tool', text: 'read_file components/CheckoutForm.tsx (188 lines)' },
     { kind: 'para', text: 'Card number and expiry are checked client-side before any network egress.' },
     { kind: 'diff', text: 'const luhn = (n: string) => n.replace(/\\D/g, "").split("").reverse()' },
     { kind: 'diff', text: '  .reduce((s, d, i) => s + (i % 2 ? Math.min(9, +d * 2) : +d), 0) % 10 === 0;' },
@@ -283,7 +283,7 @@ const TS_TASKS: StreamTask[] = [
   ]),
   buildTask('lib/webhook.ts', [
     { kind: 'prompt', text: '> Verify the HMAC on inbound webhooks before processing' },
-    { kind: 'tool', text: '● read_file lib/webhook.ts (96 lines)' },
+    { kind: 'tool', text: 'read_file lib/webhook.ts (96 lines)' },
     { kind: 'para', text: 'The signature is compared with a constant-time check before the payload is parsed.' },
     { kind: 'diff', text: 'import { timingSafeEqual } from "crypto";' },
     { kind: 'diff', text: 'const ok = timingSafeEqual(Buffer.from(sig), Buffer.from(expected));' },
@@ -296,7 +296,7 @@ const TS_TASKS: StreamTask[] = [
 const PY_TASKS: StreamTask[] = [
   buildTask('api/rate_limit.py', [
     { kind: 'prompt', text: '> Replace the fixed token refill with a sliding-window bucket' },
-    { kind: 'tool', text: '● read_file api/rate_limit.py (141 lines)' },
+    { kind: 'tool', text: 'read_file api/rate_limit.py (141 lines)' },
     { kind: 'para', text: 'A 100 rps burst drained the whole budget in one tick; a sliding window fixes it.' },
     { kind: 'diff', text: 'now = monotonic()' },
     { kind: 'diff', text: 'self.window = [t for t in self.window if now - t < WINDOW]' },
@@ -305,7 +305,7 @@ const PY_TASKS: StreamTask[] = [
   ]),
   buildTask('services/billing_sync.py', [
     { kind: 'prompt', text: '> Sync invoices idempotently so replayed events never double-charge' },
-    { kind: 'tool', text: '● read_file services/billing_sync.py (203 lines)' },
+    { kind: 'tool', text: 'read_file services/billing_sync.py (203 lines)' },
     { kind: 'para', text: 'Each invoice carries an idempotency key that is checked before the ledger insert.' },
     { kind: 'diff', text: 'if ledger.has(invoice.idempotency_key):' },
     { kind: 'diff', text: '    return invoice' },
@@ -314,7 +314,7 @@ const PY_TASKS: StreamTask[] = [
   ]),
   buildTask('jobs/ingest_queue.py', [
     { kind: 'prompt', text: '> Dedupe queued ingestion jobs by payload hash' },
-    { kind: 'tool', text: '● read_file jobs/ingest_queue.py (117 lines)' },
+    { kind: 'tool', text: 'read_file jobs/ingest_queue.py (117 lines)' },
     { kind: 'para', text: 'Jobs are keyed by the sha256 of the payload so replayed events are dropped.' },
     { kind: 'diff', text: 'import hashlib' },
     { kind: 'diff', text: 'key = hashlib.sha256(payload).hexdigest()' },
@@ -328,7 +328,7 @@ const PY_TASKS: StreamTask[] = [
 const SQL_TASKS: StreamTask[] = [
   buildTask('db/migrations/042_indexes.sql', [
     { kind: 'prompt', text: '> Add a covering index for the sessions hot path' },
-    { kind: 'tool', text: '● read_file db/migrations/042_indexes.sql (58 lines)' },
+    { kind: 'tool', text: 'read_file db/migrations/042_indexes.sql (58 lines)' },
     { kind: 'para', text: 'The refresh lookup seq-scans sessions; a covering index on (user_id, expires_at) kills it.' },
     { kind: 'diff', text: 'CREATE INDEX CONCURRENTLY idx_sessions_user_expires' },
     { kind: 'diff', text: 'ON sessions (user_id, expires_at) INCLUDE (token_hash);' },
@@ -336,7 +336,7 @@ const SQL_TASKS: StreamTask[] = [
   ]),
   buildTask('db/queries/ledger_rollup.sql', [
     { kind: 'prompt', text: '> Make the daily ledger rollup avoid sequential scans' },
-    { kind: 'tool', text: '● read_file db/queries/ledger_rollup.sql (74 lines)' },
+    { kind: 'tool', text: 'read_file db/queries/ledger_rollup.sql (74 lines)' },
     { kind: 'para', text: 'The rollup is driven by the range index on (day, account) with an incremental cursor.' },
     { kind: 'diff', text: 'WHERE day = :day AND account BETWEEN :lo AND :hi' },
     { kind: 'diff', text: 'GROUP BY account' },
@@ -344,7 +344,7 @@ const SQL_TASKS: StreamTask[] = [
   ]),
   buildTask('prisma/schema.prisma', [
     { kind: 'prompt', text: '> Validate the Prisma schema before regenerating the client' },
-    { kind: 'tool', text: '● read_file prisma/schema.prisma (320 lines)' },
+    { kind: 'tool', text: 'read_file prisma/schema.prisma (320 lines)' },
     { kind: 'para', text: 'Relations and indexes resolve cleanly; the client regenerates from the validated schema.' },
     { kind: 'diff', text: 'model Invoice {' },
     { kind: 'diff', text: '  idempotencyKey String @unique' },
@@ -357,7 +357,7 @@ const SQL_TASKS: StreamTask[] = [
 const GO_TASKS: StreamTask[] = [
   buildTask('server/egress_proxy.go', [
     { kind: 'prompt', text: '> Deny outbound connects in the egress proxy default policy' },
-    { kind: 'tool', text: '● read_file server/egress_proxy.go (244 lines)' },
+    { kind: 'tool', text: 'read_file server/egress_proxy.go (244 lines)' },
     { kind: 'para', text: 'Raw dials bypass the proxy; the default rule now denies outbound connects.' },
     { kind: 'diff', text: 'if !allowlisted(host) {' },
     { kind: 'diff', text: '    return denyConn(conn, "egress denied")' },
@@ -366,7 +366,7 @@ const GO_TASKS: StreamTask[] = [
   ]),
   buildTask('cmd/worker_pool.go', [
     { kind: 'prompt', text: '> Cap the worker pool to the GPU count and recycle idle workers' },
-    { kind: 'tool', text: '● read_file cmd/worker_pool.go (189 lines)' },
+    { kind: 'tool', text: 'read_file cmd/worker_pool.go (189 lines)' },
     { kind: 'para', text: 'Pool size is pinned to the detected GPU count; idle workers are reclaimed after the TTL.' },
     { kind: 'diff', text: 'size := detectGPUs()' },
     { kind: 'diff', text: 'pool := NewWorkerPool(size)' },
@@ -375,7 +375,7 @@ const GO_TASKS: StreamTask[] = [
   ]),
   buildTask('deploy/nginx.conf', [
     { kind: 'prompt', text: '> Harden the nginx config for the air-gapped edge' },
-    { kind: 'tool', text: '● read_file deploy/nginx.conf (87 lines)' },
+    { kind: 'tool', text: 'read_file deploy/nginx.conf (87 lines)' },
     { kind: 'para', text: 'Server tokens are off, timeouts tightened, and the upstream pinned to the local engine.' },
     { kind: 'diff', text: 'server_tokens off;' },
     { kind: 'diff', text: 'proxy_pass http://127.0.0.1:18020;' },
@@ -395,32 +395,32 @@ const QUAD_PANES: PaneSpec[] = [
 const N1_TASKS: StreamTask[] = [
   buildTask('apps/web/auth/session.ts', [
     { kind: 'prompt', text: '> Fix the token refresh race and run the auth suite' },
-    { kind: 'tool', text: '● read_file apps/web/auth/session.ts (212 lines)' },
+    { kind: 'tool', text: 'read_file apps/web/auth/session.ts (212 lines)' },
     { kind: 'para', text: 'Two concurrent refreshes rotate the same session twice inside the grace window.' },
     { kind: 'diff', text: 'if (await rotatedWithin(session, 30_000)) {' },
     { kind: 'diff', text: '  return cachedPair(session);' },
     { kind: 'diff', text: '}' },
-    { kind: 'tool', text: '● bash npx vitest run apps/web/auth/session.test.ts' },
+    { kind: 'tool', text: 'bash npx vitest run apps/web/auth/session.test.ts' },
     { kind: 'test', text: '✓ vitest apps/web/auth/session.test.ts — 14 passed in 0.41s (exit 0)' },
   ]),
   buildTask('api/rate_limit.py', [
     { kind: 'prompt', text: '> Replace the fixed token refill with a sliding-window bucket' },
-    { kind: 'tool', text: '● read_file api/rate_limit.py (141 lines)' },
+    { kind: 'tool', text: 'read_file api/rate_limit.py (141 lines)' },
     { kind: 'para', text: 'A 100 rps burst drained the whole budget in one tick; a sliding window fixes it.' },
     { kind: 'diff', text: 'now = monotonic()' },
     { kind: 'diff', text: 'self.window = [t for t in self.window if now - t < WINDOW]' },
     { kind: 'diff', text: 'free = self.capacity - len(self.window)' },
-    { kind: 'tool', text: '● bash pytest tests/test_rate_limit.py' },
+    { kind: 'tool', text: 'bash pytest tests/test_rate_limit.py' },
     { kind: 'test', text: '✓ pytest tests/test_rate_limit.py — 9 passed in 0.38s' },
   ]),
   buildTask('server/egress_proxy.go', [
     { kind: 'prompt', text: '> Deny outbound connects in the egress proxy default policy' },
-    { kind: 'tool', text: '● read_file server/egress_proxy.go (244 lines)' },
+    { kind: 'tool', text: 'read_file server/egress_proxy.go (244 lines)' },
     { kind: 'para', text: 'Raw dials bypass the proxy; the default rule now denies outbound connects.' },
     { kind: 'diff', text: 'if !allowlisted(host) {' },
     { kind: 'diff', text: '    return denyConn(conn, "egress denied")' },
     { kind: 'diff', text: '}' },
-    { kind: 'tool', text: '● bash go test ./server/...' },
+    { kind: 'tool', text: 'bash go test ./server/...' },
     { kind: 'test', text: '✓ go test ./server/... — 22 passed in 0.64s' },
   ]),
 ];
