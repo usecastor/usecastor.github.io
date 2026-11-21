@@ -2,7 +2,10 @@
 import Layout from '../../layouts/Layout.astro';
 import Header from '../../components/Header.astro';
 import QuickstartFooter from '../../components/QuickstartFooter.astro';
-import { ARCHITECTURE as A } from '../../data/telemetry';
+import {
+  ARCHITECTURE as A,
+  LEDGER_76DAY as L,
+} from '../../data/telemetry';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const siteUrl = new URL(Astro.site ?? 'http://localhost').href.replace(/\/$/, '');
@@ -68,15 +71,15 @@ const faqPage = {
 const techArticle = {
   '@type': 'TechArticle',
   name: 'Air-Gapped Local Coding Agent for CMMC Level 2, ITAR & SCIF Enclaves',
-  datePublished: '2026-11-19',
-  dateModified: '2026-11-19',
+  datePublished: '2026-11-21',
+  dateModified: '2026-11-21',
   author: { '@type': 'Organization', name: 'Castor Technologies' },
   publisher: { '@type': 'Organization', name: 'Castor Technologies' },
   mainEntityOfPage: `${root}enterprise/air-gapped-coding-agent/`,
   keywords:
     'air-gapped, coding agent, CMMC Level 2, ITAR, SCIF, NIST 800-171, Landlock, sandbox, zero-trust, DIB, defense, compliance, local LLM, MCP',
   abstract:
-    'A zero-egress autonomous coding agent for regulated enclaves: a 5-layer path sandbox verified across 137 attack vectors (123 blocked / 14 allowed), Linux Landlock kernel confinement, a lexical shell scanner with dead-man fuse, a 27-grammar Tree-Sitter AST gate, and an explicit no-egress build flag.',
+    'Wing 2 of Castor: a 100% local-only, air-gapped on-prem coding agent for regulated enclaves. Zero cloud egress — outbound tools compiled out, loopback-only ports — with a 5-layer path sandbox verified across 137 attack vectors (123 blocked / 14 allowed), Linux Landlock kernel confinement, a per-task audit ledger for NIST 800-171 / CMMC Level 2 / ITAR / SCIF, and a 27-grammar Tree-Sitter AST gate.',
 };
 
 const jsonLd = [breadcrumb, techArticle, faqPage];
@@ -154,7 +157,7 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
 
 <Layout
   title="Air-Gapped Local Coding Agent for CMMC Level 2, ITAR & SCIF Enclaves | Castor"
-  description="A zero-egress autonomous coding agent for regulated enclaves: a 5-layer path sandbox verified across 137 attack vectors (123 blocked / 14 allowed), Linux Landlock kernel confinement, a lexical shell scanner with dead-man fuse, a 27-grammar Tree-Sitter AST gate, and an explicit no-egress build flag. Turnkey Sprint ($1,500) and Fixed-Scope Air-Gap Pilot below the Copilot anchor."
+  description="Wing 2 of Castor — 100% local-only, air-gapped on-prem coding infrastructure. Zero cloud egress: outbound tools compiled out, loopback-only ports, a 5-layer path sandbox verified across 137 attack vectors (123 blocked / 14 allowed), Linux Landlock kernel confinement, and a per-task audit ledger for NIST 800-171 / CMMC Level 2 / ITAR / SCIF. Turnkey setup, agent plumbing & compliance rollout."
   canonicalPath="/enterprise/air-gapped-coding-agent/"
   jsonLd={jsonLd}
 >
@@ -164,20 +167,21 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
     <section class="hardware-dot-grid">
       <div class="mx-auto max-w-6xl px-4 pb-12 pt-10 sm:px-6 lg:px-8">
         <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-local">
-          // enterprise · air-gapped · cmmc level 2 · itar · scif
+          // wing 02 · 100% local-only · air-gapped · cmmc level 2 · itar · scif
         </p>
         <h1
           class="mt-4 font-display text-[clamp(1.9rem,3.4vw,3rem)] font-bold leading-[1.02] tracking-[-0.035em] text-ink"
         >
-          An Autonomous Coding Agent That
-          <span class="text-local">Cannot Egress.</span>
+          Private &amp; Air-Gapped Coding Agents
+          <span class="text-local">on Your Own GPUs.</span>
         </h1>
         <p class="mt-4 max-w-2xl font-sans text-[15px] leading-relaxed text-ink-secondary sm:text-base">
-          Castor compiles to a <b>zero-egress</b> binary: stdio-only MCP,
-          loopback-only engine ports, and outbound web / paper tools
-          <b>compiled out</b> — so source code in a CMMC Level 2, ITAR, or
-          SCIF enclave never has a code path to leave. The sandbox is not a
-          policy memo; it is a 5-layer kernel-and-runtime stack verified
+          Castor Wing 2 runs coding agents <b>entirely on-prem</b>: zero cloud
+          API calls, <b>zero code egress</b>. Outbound web / paper tools are
+          <b>compiled out</b>, engine ports bind to loopback only, and every
+          tool call lands in a per-task audit ledger — so source in a
+          CMMC Level 2, ITAR, or SCIF enclave never has a code path to leave.
+          The boundary is not a policy memo; it is a 5-layer stack verified
           across <b>137 attack vectors</b>.
         </p>
 
@@ -200,6 +204,30 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
             <p class="tabular mt-1 font-display text-3xl font-bold text-ink">{A.treeSitterGrammars}</p>
           </div>
         </div>
+
+        <!-- Throughput & verified-corpus hero strip (78-day ledger) -->
+        <div class="spec-grid mt-4 grid grid-cols-2 lg:grid-cols-4">
+          <div class="p-4">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Single-stream decode</p>
+            <p class="tabular mt-1 font-display text-2xl font-bold text-local md:text-3xl">{L.sustainedDecodeTps} tok/s</p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">n=1 · 78-day mean</p>
+          </div>
+          <div class="p-4">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Concurrent decode</p>
+            <p class="tabular mt-1 font-display text-2xl font-bold text-local md:text-3xl">260 tok/s</p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">aggregate · n=4 concurrent · warm KV prefix</p>
+          </div>
+          <div class="p-4">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Verified corpus</p>
+            <p class="tabular mt-1 font-display text-2xl font-bold text-ink md:text-3xl">{L.totalTokensDisplay}</p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.days}-day local ledger · {L.toolSuccessPct}% tool success</p>
+          </div>
+          <div class="p-4">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Cloud calls</p>
+            <p class="tabular mt-1 font-display text-2xl font-bold text-block md:text-3xl">0</p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">air-gapped · egress compiled out</p>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -207,9 +235,12 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
     <section id="stack" class="scroll-mt-16 border-y border-hairline bg-recessed/40">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            01 · the zero-trust path stack · <code class="am-code">src/tools/sandbox/mod.rs</code>
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">
+              the zero-trust path stack · <code class="am-code">src/tools/sandbox/mod.rs</code>
+            </span>
+            <span class="folio-index">01 / 05</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             Five Layers, Verified Across 137 Vectors
           </h2>
@@ -244,9 +275,10 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
     <section id="gates" class="scroll-mt-16 border-b border-hairline">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            02 · companion runtime gates
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">companion runtime gates</span>
+            <span class="folio-index">02 / 05</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             Kernel, Shell &amp; AST — Three Hard Gates Below the Path Pipeline
           </h2>
@@ -296,9 +328,10 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
     <section id="egress" class="scroll-mt-16 border-b border-hairline bg-recessed/40">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            03 · the explicit no-egress build
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">zero cloud egress · the explicit no-egress build</span>
+            <span class="folio-index">03 / 05</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             Egress Is a Compile-Time Decision, Not a Runtime Toggle
           </h2>
@@ -374,9 +407,10 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
     <section id="pilot" class="scroll-mt-16 border-b border-hairline">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            04 · engagement · real mailto, no forms
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">turnkey setup, plumbing &amp; compliance rollout</span>
+            <span class="folio-index">04 / 05</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             Two Ways to Stand It Up
           </h2>
@@ -409,6 +443,21 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
           ))}
         </div>
 
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a
+            href={`${base}/#deploy`}
+            class="tactile-btn tactile-btn--secondary"
+          >
+            Book 48-Hour vLLM &amp; GPU Setup Sprint →
+          </a>
+          <a
+            href={`${base}/#savings`}
+            class="tactile-btn tactile-btn--secondary"
+          >
+            See the 78-Day Savings Ledger →
+          </a>
+        </div>
+
         <p class="mt-6 font-mono text-[11px] text-ink-muted">
           Direct line: <a href={`mailto:${EMAIL}`} class="text-ink-secondary underline decoration-hairline underline-offset-4 hover:text-ink">{EMAIL}</a>
           · Open source (AGPL-3.0): <a href="https://github.com/usecastor/castor" target="_blank" rel="noreferrer" class="text-ink-secondary underline decoration-hairline underline-offset-4 hover:text-ink">github.com/usecastor/castor</a>
@@ -420,9 +469,10 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
     <section id="faq" class="scroll-mt-16 border-b border-hairline bg-recessed/40">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            05 · ciso &amp; compliance faq
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">ciso &amp; compliance faq</span>
+            <span class="folio-index">05 / 05</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             Five Questions, Answered for the Auditor
           </h2>

@@ -35,9 +35,9 @@ const breadcrumb = {
 
 const techArticle = {
   '@type': 'TechArticle',
-  name: 'Qwen3.8-27B on RTX 3090 — 76-Day Castor Telemetry',
+  name: 'Qwen3.8-27B on RTX 3090 — 78-Day Castor Telemetry',
   datePublished: '2026-09-04',
-  dateModified: '2026-11-19',
+  dateModified: '2026-11-21',
   author: { '@type': 'Organization', name: 'Castor Technologies' },
   publisher: { '@type': 'Organization', name: 'Castor Technologies' },
   mainEntityOfPage: `${root}benchmarks/qwen3-8-27b-rtx-3090/`,
@@ -45,15 +45,15 @@ const techArticle = {
   keywords:
     'Qwen3.8-27B, RTX 3090, vLLM, MTP speculative decode, tok/s prefill, KV cache, W4A16, llama.cpp, DFlash2, local LLM benchmark, air-gapped',
   abstract:
-    'A 76-day production ledger (Sep 4 – Nov 19, 2026) of Qwen3.8-27B-W4A16 served by vLLM 0.33.0 on a single RTX 3090: 2.62B tokens, 93.7% KV prefix cache hit, 6,892 tok/s November-average prefill, 75.5 p50 / 116.6 p95 tok/s decode, $9.38 in electricity vs. a $5,712.50 cloud counterfactual.',
+    'A 78-day production ledger (Sep 4 – Nov 21, 2026) of Qwen3.8-27B-W4A16 served by vLLM 0.33.0 on a single RTX 3090: 2.77B tokens, 93.8% KV prefix cache hit, 6,892 tok/s peak cached prefill, 70.4 tok/s sustained decode, $10.12 in electricity vs. a $6,044.48 cloud counterfactual ($6,034.36 net saved).',
 };
 
 const jsonLd = [breadcrumb, techArticle];
 ---
 
 <Layout
-  title="Qwen3.8-27B on RTX 3090 Benchmarks — 76-Day Castor Telemetry (6,892 tok/s Prefill)"
-  description="Complete measured 76-day ledger (Sep 4 – Nov 19, 2026) of Qwen3.8-27B-W4A16 on a single RTX 3090 under vLLM 0.33.0: 2.62B tokens, 93.7% KV prefix hit, 6,892 tok/s avg prefill, 75.5 p50 decode — $9.38 power vs. a $5,712.50 cloud counterfactual. 8/12/16/24 GB VRAM tier matrix included."
+  title="Qwen3.8-27B on RTX 3090 Benchmarks — 78-Day Castor Telemetry (6,892 tok/s Peak Cached Prefill)"
+  description="Complete measured 78-day ledger (Sep 4 – Nov 21, 2026) of Qwen3.8-27B-W4A16 on a single RTX 3090 under vLLM 0.33.0: 2.77B tokens, 93.8% KV prefix hit, 3,247 tok/s effective prefill (6,892 peak cached), 70.4 tok/s sustained decode — $10.12 power vs. a $6,044.48 cloud counterfactual ($6,034.36 net saved). 8/12/16/24 GB VRAM tier matrix included."
   canonicalPath="/benchmarks/qwen3-8-27b-rtx-3090/"
   jsonLd={jsonLd}
 >
@@ -69,17 +69,17 @@ const jsonLd = [breadcrumb, techArticle];
           class="mt-4 font-display text-[clamp(1.9rem,3.4vw,3rem)] font-bold leading-[1.02] tracking-[-0.035em] text-ink"
         >
           Qwen3.8-27B on a Single RTX 3090 —
-          <span class="text-local">76 Days of Measured Telemetry.</span>
+          <span class="text-local">78 Days of Measured Telemetry.</span>
         </h1>
         <p class="mt-4 max-w-2xl font-sans text-[15px] leading-relaxed text-ink-secondary sm:text-base">
           Not a vendor slide. A live <code class="am-code">castor stats</code> ledger
-          captured every turn over <b>76 days (Sep 4 – Nov 19, 2026)</b> on one
+          captured every turn over <b>78 days (Sep 4 – Nov 21, 2026)</b> on one
           RTX 3090 running
           <code class="am-code">Qwen3.8-27B-W4A16-AutoRound-fast</code> under
-          vLLM 0.33.0 with MTP speculative decoding — 2.62 billion tokens,
-          93.7% of prompt tokens served from a warm KV cache, and
-          <b>$9.38 of electricity</b> against a
-          <b>$5,712.50 cloud-API counterfactual</b>.
+          vLLM 0.33.0 with MTP speculative decoding — 2.77 billion tokens,
+          93.8% of prompt tokens served from a warm KV cache, and
+          <b>$10.12 of electricity</b> against a
+          <b>$6,044.48 cloud-API counterfactual</b> ($6,034.36 net saved).
         </p>
 
         <!-- 4-cell hero ledger strip -->
@@ -87,50 +87,53 @@ const jsonLd = [breadcrumb, techArticle];
           <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Total tokens</p>
             <p class="tabular mt-1 font-display text-2xl font-bold text-ink md:text-3xl">
-              2.62B
+              2.77B
             </p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              {L.totalTokens.toLocaleString('en-US')} over 76 days
+              {L.totalTokens.toLocaleString('en-US')} over {L.days} days
             </p>
           </div>
           <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">KV prefix hit</p>
             <p class="tabular mt-1 font-display text-2xl font-bold text-cloud md:text-3xl">
-              93.7%
+              93.8%
             </p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
               {L.cachedTokensDisplay} / {L.promptTokensDisplay}
             </p>
           </div>
           <div class="p-4">
-            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Prefill (Nov avg)</p>
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Prefill (peak cached)</p>
             <p class="tabular mt-1 font-display text-2xl font-bold text-ink md:text-3xl">
               6,892
             </p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              tok/s · p95 16,365 · max 19,384
+              tok/s · {L.effectivePrefillTps.toLocaleString('en-US')} effective
             </p>
           </div>
           <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Net savings</p>
             <p class="tabular mt-1 font-display text-2xl font-bold text-ok md:text-3xl">
-              99.84%
+              {L.netSavingsPct}%
             </p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              ${L.electricityUsd} power vs. $5,712.50 cf
+              ${L.electricityUsd} power vs. ${L.cloudCounterfactualUsd.toLocaleString('en-US')} cf
             </p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ── Section: 76-day ledger ─────────────────────────────────────── -->
+    <!-- ── Section: 78-day ledger ─────────────────────────────────────── -->
     <section id="ledger" class="scroll-mt-16 border-y border-hairline bg-recessed/40">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            01 · the 76-day ledger · <code class="am-code">./target/release/castor stats</code>
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">
+              the 78-day ledger · <code class="am-code">./target/release/castor stats</code>
+            </span>
+            <span class="folio-index">01 / 05</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             The Complete Measured Ledger
           </h2>
@@ -153,28 +156,28 @@ const jsonLd = [breadcrumb, techArticle];
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
               {L.promptTokens.toLocaleString('en-US')}
             </p>
-            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">2.56B</p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.promptTokensDisplay}</p>
           </div>
           <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Cached tokens</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
               {L.cachedTokens.toLocaleString('en-US')}
             </p>
-            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">2.39B · {L.cacheHitPct}%</p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.cachedTokensDisplay} · {L.cacheHitPct}%</p>
           </div>
           <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Completion tokens</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
               {L.completionTokens.toLocaleString('en-US')}
             </p>
-            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">59.21M</p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.completionTokensDisplay}</p>
           </div>
           <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Reasoning tokens</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
               {L.reasoningTokens.toLocaleString('en-US')}
             </p>
-            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">50.68M · {L.reasoningSharePct}% of completion</p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.reasoningTokensDisplay} · {L.reasoningSharePct}% of completion</p>
           </div>
           <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Autonomous turns</p>
@@ -182,7 +185,7 @@ const jsonLd = [breadcrumb, techArticle];
               {L.turns.toLocaleString('en-US')}
             </p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              {L.sessions.toLocaleString('en-US')} sessions
+              {L.sessions.toLocaleString('en-US')} sessions · {L.tasks} tasks
             </p>
           </div>
           <div class="p-4">
@@ -200,43 +203,52 @@ const jsonLd = [breadcrumb, techArticle];
           <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Sustained decode</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">{L.sustainedDecodeTps} tok/s</p>
-            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">76-day mean</p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.days}-day mean</p>
           </div>
           <div class="p-4">
-            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Nov decode p50 / p95</p>
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Peak MTP decode</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
-              {L.novDecodeP50Tps} / {L.novDecodeP95Tps}
+              {L.peakMtpDecodeTps} tok/s
             </p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              max {L.novDecodeMaxTps} · peak spec burst {L.peakSpecBurstTps.toLocaleString('en-US')}
+              peak single-stream (n=1)
             </p>
           </div>
           <div class="p-4">
-            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">All-time prefill</p>
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Concurrent decode</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
-              {L.allTimePrefillTps.toLocaleString('en-US')} tok/s
-            </p>
-            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">single-request burst</p>
-          </div>
-          <div class="p-4">
-            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Nov prefill avg / p95</p>
-            <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
-              {L.novPrefillAvgTps.toLocaleString('en-US')} / {L.novPrefillP95Tps.toLocaleString('en-US')}
+              260 tok/s
             </p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              max {L.novPrefillMaxTps.toLocaleString('en-US')} tok/s
+              aggregate across n=4 concurrent · warm KV prefix
+            </p>
+          </div>
+          <div class="p-4">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Effective prefill</p>
+            <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
+              {L.effectivePrefillTps.toLocaleString('en-US')} tok/s
+            </p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">effective prefill (warm + cold)</p>
+          </div>
+          <div class="p-4">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Peak cached prefill</p>
+            <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">
+              {L.peakCachedPrefillTps.toLocaleString('en-US')} tok/s
+            </p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
+              warm KV-cache prefill peak
             </p>
           </div>
           <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">GPU compute time</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">{L.gpuComputeDisplay}</p>
-            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.gpuComputeHours} hours</p>
+            <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">{L.sessionWallClock} session wall-clock</p>
           </div>
           <div class="p-4">
             <p class="font-mono text-[10px] uppercase tracking-widest text-ink-muted">Electricity cost</p>
             <p class="tabular mt-1 font-mono text-lg font-semibold text-ink">${L.electricityUsd}</p>
             <p class="mt-0.5 font-mono text-[11px] text-ink-secondary">
-              {L.electricityKwh} kWh @ ${L.electricityRateUsdPerKwh}/kWh
+              {L.electricityKwh} kWh @ ${L.electricityRateUsdPerKwh}/kWh · {L.gpuTdpW}W TDP
             </p>
           </div>
           <div class="p-4">
@@ -261,18 +273,21 @@ const jsonLd = [breadcrumb, techArticle];
     <section id="live" class="scroll-mt-16 border-b border-hairline">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            02 · live hardware snapshot · {H.asOf}
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">
+              live hardware snapshot · {H.asOf}
+            </span>
+            <span class="folio-index">02 / 05</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             vLLM 0.33.0 <code class="am-code">/metrics</code> &amp;
             <code class="am-code">nvidia-smi</code>
           </h2>
           <p class="mt-3 max-w-2xl font-sans text-sm leading-relaxed text-ink-secondary">
             A single live scrape of the serving stack on the day the ledger was
-            sealed. The vLLM engine reports <code class="am-code">92.6%</code>
+            sealed. The vLLM engine reports <code class="am-code">93.8%</code>
             live prefix-cache hit and <code class="am-code">70.5%</code> live
-            MTP draft acceptance — consistent with the 93.7% window average
+            MTP draft acceptance — consistent with the 93.8% window average
             once cold-cache starts are amortized.
           </p>
         </header>
@@ -366,9 +381,10 @@ const jsonLd = [breadcrumb, techArticle];
     <section id="tiers" class="scroll-mt-16 border-b border-hairline bg-recessed/40">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            03 · vram tier matrix
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">vram tier matrix</span>
+            <span class="folio-index">03 / 05</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             8 GB → 24 GB: Same Kernel, Different Ceiling
           </h2>
@@ -416,9 +432,12 @@ const jsonLd = [breadcrumb, techArticle];
     <section id="model" class="scroll-mt-16 border-b border-hairline">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            04 · model card · {QWEN38_MODEL_CARD_DATE} · {QWEN38_LICENSE}
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">
+              model card · {QWEN38_MODEL_CARD_DATE} · {QWEN38_LICENSE}
+            </span>
+            <span class="folio-index">04 / 05</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             Qwen3.8-27B — Vendor-Published Benchmark Scores
           </h2>
@@ -448,9 +467,10 @@ const jsonLd = [breadcrumb, techArticle];
     <section id="methodology" class="scroll-mt-16 border-b border-hairline bg-recessed/40">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            05 · methodology &amp; transparency
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">methodology &amp; transparency</span>
+            <span class="folio-index">05 / 05</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             How These Numbers Were Measured
           </h2>
@@ -462,9 +482,9 @@ const jsonLd = [breadcrumb, techArticle];
               Data source
             </h3>
             <ul class="mt-3 space-y-2 font-mono text-[12px] leading-relaxed text-ink-secondary">
-              <li><code class="am-code">./target/release/castor stats</code> — 76-day aggregate (Sep 4 – Nov 19, 2026), emitted by the Rust microkernel's on-disk telemetry ledger.</li>
+              <li><code class="am-code">./target/release/castor stats</code> — 78-day aggregate (Sep 4 – Nov 21, 2026), emitted by the engine's on-disk telemetry ledger.</li>
               <li><code class="am-code">curl localhost:18020/metrics</code> — vLLM 0.33.0 Prometheus endpoint for live prefix-cache hit, TTFT, and MTP acceptance.</li>
-              <li><code class="am-code">nvidia-smi --query-gpu=... --format=csv</code> — hardware snapshot on 2026-11-19.</li>
+              <li><code class="am-code">nvidia-smi --query-gpu=... --format=csv</code> — hardware snapshot on 2026-11-21.</li>
             </ul>
           </div>
           <div class="bg-surface p-6">
@@ -472,8 +492,8 @@ const jsonLd = [breadcrumb, techArticle];
               Caveats
             </h3>
             <ul class="mt-3 space-y-2 font-mono text-[12px] leading-relaxed text-ink-secondary">
-              <li>Nov-average prefill (6,892 tok/s) includes warm-KV cache hits; cold-start prefill on a 150K context is lower but amortized by the 93.7% hit rate.</li>
-              <li>The $5,712.50 cloud counterfactual uses Sonnet-tier $2/$10 per-1M-token pricing — a conservative floor, not the frontier-model $8/$40 tier.</li>
+              <li>Window-average prefill (6,892 tok/s peak cached) includes warm-KV cache hits; cold-start prefill on a 150K context is lower but amortized by the 93.8% hit rate.</li>
+              <li>The $6,044.48 cloud counterfactual uses Sonnet-tier $2/$10 per-1M-token pricing — a conservative floor, not the frontier-model $8/$40 tier.</li>
               <li>Electrical cost uses $0.18/kWh (US residential average, Nov 2026); your rate will vary.</li>
               <li>No GPU was harmed. All numbers are reproducible from the open-source <code class="am-code">castor stats</code> command.</li>
             </ul>
@@ -490,22 +510,28 @@ const jsonLd = [breadcrumb, techArticle];
             Run it Yourself. Read the Ledger.
           </h2>
           <p class="mt-3 max-w-xl font-sans text-sm leading-relaxed text-ink-secondary">
-            Install the MCP microkernel on your machine, point it at your
+            Install Castor as an MCP server on your machine, point it at your
             local engine, and run <code class="am-code">castor stats</code> to
-            watch your own 76-day ledger build in real time.
+            watch your own 78-day ledger build in real time.
           </p>
           <div class="mt-6 flex flex-wrap gap-3">
             <a
               href="#quickstart"
               class="tactile-btn tactile-btn--primary"
             >
-              Copy Install Command
+              Jump to 60-Second Quickstart ↓
             </a>
             <a
-              href={`${base}/#economics`}
+              href={`${base}/#savings`}
               class="tactile-btn tactile-btn--secondary"
             >
               Economics Calculator →
+            </a>
+            <a
+              href={`${base}/#deploy`}
+              class="tactile-btn tactile-btn--secondary"
+            >
+              Book 48-Hour vLLM &amp; GPU Setup Sprint →
             </a>
             <a
               href="https://github.com/usecastor/castor"

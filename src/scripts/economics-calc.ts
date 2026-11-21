@@ -4,7 +4,7 @@
  * Shared by the EconomicsCalc frontmatter (SSR initial render) and the
  * client bundle (live recomputation on slider/toggle change).
  *
- * Calibration — all values from the 76-day Castor ledger (Sep 4 – Nov 19, 2026):
+ * Calibration — all values from the 78-day Castor ledger (Sep 4 – Nov 21, 2026):
  *  - Agentic token mix: 97.7% prompt / 2.3% output tokens.
  *  - Cloud cache: the "Real Agentic" profile pays 30% of the prompt rate
  *    for the 70%-discounted cached portion (no inflated cloud bills).

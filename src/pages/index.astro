@@ -8,7 +8,7 @@
 // plus the sleek dark-glass Header and minimal obsidian Footer.
 //
 // Total visible prose is ruthlessly terse (< 320 words) — every number is
-// sourced from the 100%-verified November 19, 2026 telemetry layer.
+// sourced from the 100%-verified November 21, 2026 telemetry layer.
 
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
@@ -17,20 +17,15 @@ import HeroCinema from '../components/v3/HeroCinema';
 import DualEngineBeam from '../components/v3/DualEngineBeam';
 import SavingsInstrument from '../components/v3/SavingsInstrument';
 import DeployDeck from '../components/v3/DeployDeck';
-import { getPrecompiledHeroSteps } from '../data/magic-move-steps';
-
-// Build-time precompiled magic-move tokens (inlined as plain JSON — zero
-// Shiki JS/WASM shipped; the browser only plays CSS token morphs).
-const steps = await getPrecompiledHeroSteps();
 ---
 
 <Layout
-  title="Castor — Keep Your Frontier Model. Stop Paying It to Read Files."
-  description="Run autonomous AI coding agents on your private GPU: 2.62B tokens over 76 days at 93.7% prefix-cache hit, 99.84% net savings versus cloud API counterfactual."
+  title="Castor — Cloud + Local Hybrid & 100% Local AI Coding Agents on Your GPU"
+  description="Run AI coding agents on your private GPU. Wing 1 keeps Claude Code, Cursor, or Codex in the cloud while file reads, AST edits, and test runs route to your local GPU at $0/token. Wing 2 runs 100% local and air-gapped — zero code egress. 2.77B tokens over 78 days at 93.8% KV-cache hit, $6,034 net savings versus cloud. Plus turnkey GPU setup, vLLM/KV-cache tuning, and agent workflow plumbing."
 >
   <Header />
   <main id="main-content">
-    <HeroCinema client:load steps={steps} />
+    <HeroCinema client:load />
     <DualEngineBeam client:visible />
     <SavingsInstrument client:visible />
     <DeployDeck client:visible />

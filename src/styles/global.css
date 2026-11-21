@@ -93,9 +93,27 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* ── Text selection ──────────────────────────────────────────────────
+   Light paper: soft amber wash with dark ink (the signature ground).
+   Any dark ground (obsidian theme, instrument chassis, header/footer,
+   code blocks, Shiki, and the `.dark-surface` dark stages) flips to
+   crisp warm-white on amber so selected text is never black-on-black. */
 ::selection {
   background-color: var(--signal-local-dim);
   color: var(--ink-primary);
+}
+
+[data-theme='dark'] ::selection,
+.dark-surface ::selection,
+.instrument-chassis ::selection,
+header ::selection,
+footer ::selection,
+pre ::selection,
+code ::selection,
+.shiki ::selection,
+.shiki-magic-move-container ::selection {
+  background: rgba(249, 115, 22, 0.38);
+  color: #faf9f5;
 }
 
 @layer components {
@@ -434,4 +452,109 @@ body {
   white-space: pre;
   word-break: normal;
   overflow-wrap: normal;
+}
+
+/* ── Field-Guide Structural Primitives ────────────────────────────────
+   Adapted from Meng To's `sylva-field-guide-layout` to Castor's Swiss
+   Paper + Obsidian Silicon palette. These are the editorial skeleton
+   the page and its sections share: continuous guide rails, two-edge
+   specimen caption bars, an asymmetric editorial spread, and machined
+   card geometry. All ink is token-driven (currentColor / CSS vars) so the
+   rails re-tone automatically across dark obsidian and warm paper. */
+
+/* .field-shell — page/section wrapper carrying continuous full-height
+   vertical guide rails. The rails are a pointer-transparent ::before layer
+   inset `clamp(12px, 3vw, 48px)` from the viewport edges; `currentColor`
+   at 0.11 opacity means they follow whichever ink the section sets, so
+   they read faint on both paper and obsidian with zero extra markup.
+   The overlay sits above section backgrounds (z-index 30) so the rails stay
+   continuous across the dark and paper stages, but below the sticky header
+   (z-50), mobile drawer (z-50), and skip link (z-60). pointer-events none,
+   so it never intercepts a tap or drag. */
+.field-shell {
+  position: relative;
+}
+
+.field-shell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--field-rail-inset);
+  right: var(--field-rail-inset);
+  border-inline: 1px solid currentColor;
+  opacity: var(--field-rail-opacity);
+  pointer-events: none;
+  z-index: 30;
+}
+
+/* .folio-bar — aligned two-edge specimen caption bar. A low-alpha hairline
+   top border, a flex row with the coordinate label on the left and the
+   folio index (e.g. `01 / 04`) on the right. 11px mono, uppercase,
+   0.12em tracking. */
+.folio-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid currentColor;
+  border-top-color: color-mix(in srgb, currentColor 14%, transparent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-secondary);
+}
+
+.folio-bar .folio-coord {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folio-bar .folio-index {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+/* .asymmetric-spread — 2-column editorial grid (slightly heavier right
+   column), collapsing cleanly to a single column on mobile. */
+.asymmetric-spread {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem 2.5rem;
+  align-items: start;
+}
+
+@media (min-width: 640px) {
+  .asymmetric-spread {
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  }
+}
+
+/* .prose-measure — constrained reading measure for editorial text. */
+.prose-measure {
+  max-width: var(--field-measure);
+}
+
+/* .machined-card — crisp industrial card geometry: 3px corner radius and
+   a single 1px hairline border, replacing generic `rounded-xl` SaaS cards. */
+.machined-card {
+  border-radius: var(--field-radius);
+  border: 1px solid var(--border-hairline);
+}
+
+.machined-card--surface {
+  background: var(--bg-surface);
+}
+
+.machined-card--raised {
+  background: var(--bg-raised);
+}
+
+[data-theme='dark'] .machined-card {
+  border-color: var(--border-strong);
 }

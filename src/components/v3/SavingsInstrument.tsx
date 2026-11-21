@@ -2,49 +2,51 @@
 /**
  * ACT 3 — SavingsInstrument.
  * Deep-silicon (#06080D) pointer-spotlight ROI calculator: three workload
- * presets, six frontier model pills (verified Nov-2026 official rates), two
- * sliders, one cache-rate toggle, and a live NumberFlow annual-savings
- * readout. Dispatches `castor:economics-update` so the DeployDeck enriches
- * its mailto CTAs with the visitor's actual numbers.
+ * presets (only one highlighted at a time, and only while its exact
+ * (engineers, monthlyTokensM) pair is live), six frontier model pills
+ * (verified Nov-2026 official rates), two sliders, one cache-discount
+ * toggle with a clear ON/OFF badge, three dynamic comparison bars
+ * (cloud burn vs Castor hybrid vs hardware break-even timeline with
+ * 1st-year ROI fill), and a live NumberFlow annual-savings readout.
+ * Dispatches `castor:economics-update` so the DeployDeck enriches its
+ * mailto CTAs with the visitor's actual numbers.
  *
  * Zero scroll hijacking, zero stuck opacity.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  motion,
-  useMotionTemplate,
-  useMotionValue,
-} from 'motion/react';
+import { motion, useMotionTemplate, useMotionValue } from 'motion/react';
 import { NumberFlowGroup } from '@number-flow/react';
 import SafeNumberFlow from './SafeNumberFlow';
 import { CLOUD_MODELS, type CloudModel } from '../../data/telemetry';
 import {
   computeEconomics,
   dispatchEconomicsUpdate,
-  fmtPayback,
   fmtUsd,
   type CalcInputs,
   type EconomicsUpdateDetail,
 } from '../../scripts/economics-calc';
 
 /* ── Model selection: six frontier models from the verified ledger ────
-   Fable 5.2, GPT-6.2 Astra, Opus 5.5 (default), Gemini 4, Sonnet 5.5,
-   Haiku 5.5 — indices map into CLOUD_MODELS in telemetry.ts. */
-const MODEL_INDICES = [0, 1, 2, 3, 4, 6];
-const DEFAULT_MODEL_INDEX = 2; // Claude Opus 5.5
+   Opus 5.5 (default), GPT-6.2 Astra, Gemini 4 Argon, Sonnet 5.5,
+   GPT-6.2 Sol, Haiku 5.5 — indices map into CLOUD_MODELS in telemetry.ts. */
+const MODEL_INDICES = [0, 1, 2, 3, 4, 5];
+const DEFAULT_MODEL_INDEX = 0; // Claude Opus 5.5
 
 /* Crisp short labels for the pill face (keep the price visible at 390px).
    The full official model name stays in the `title` / aria-label and is
    what's published into the DeployDeck mailto CTA. */
 const SHORT_LABELS = [
-  'Fable 5.2',
-  'GPT-6.2 Astra',
   'Opus 5.5',
-  'Gemini 4',
+  'GPT-6.2 Astra',
+  'Gemini 4 Argon',
   'Sonnet 5.5',
+  'GPT-6.2 Sol',
   'Haiku 5.5',
 ];
 
+/* ── Workload presets ──────────────────────────────────────────────────
+   A preset is highlighted ONLY while the live (team, volume) values
+   actually match it; moving either slider clears the highlight at once. */
 const PRESETS: Array<{
   key: string;
   label: string;
@@ -54,11 +56,21 @@ const PRESETS: Array<{
   offload: number;
   rate: number;
 }> = [
-  { key: 'solo', label: 'Solo', sub: '1× 3090', team: 1, volume: 200, offload: 90, rate: 0.18 },
+  { key: 'solo', label: 'Solo', sub: '1 × 3090', team: 1, volume: 200, offload: 90, rate: 0.18 },
   { key: 'team5', label: '5-Eng Team', sub: '150M', team: 5, volume: 150, offload: 85, rate: 0.18 },
   { key: 'airgap', label: '25-Seat Air-Gap', sub: '180M', team: 25, volume: 180, offload: 90, rate: 0.14 },
 ];
-const DEFAULT_PRESET_KEY = 'team5';
+
+/* ── Hardware tiers for the break-even timeline bar ─────────────────── */
+const HW_TIERS = [
+  { key: 'solo', label: '1× RTX 3090', sub: 'solo dev', cost: 850, maxTeam: 4 },
+  { key: 'team', label: '1× RTX 5090 Workstation', sub: 'small team', cost: 3800, maxTeam: 14 },
+  { key: 'node', label: 'Multi-GPU Team vLLM Node', sub: '15+ engineers', cost: 16000, maxTeam: Infinity },
+] as const;
+
+function pickHwTier(team: number): (typeof HW_TIERS)[number] {
+  return HW_TIERS.find((t) => team <= t.maxTeam) ?? HW_TIERS[HW_TIERS.length - 1];
+}
 
 /* ── Root ────────────────────────────────────────────────────────────── */
 
@@ -78,15 +90,23 @@ export default function SavingsInstrument() {
     sy.set(((e.clientY - r.top) / r.height) * 100);
   };
 
-  const [presetKey, setPresetKey] = useState(DEFAULT_PRESET_KEY);
+  const [team, setTeam] = useState(5); // 5-Eng Team preset
+  const [volume, setVolume] = useState(150);
   const [modelIdx, setModelIdx] = useState(DEFAULT_MODEL_INDEX);
-  const preset = PRESETS.find((p) => p.key === presetKey) ?? PRESETS[1];
-
-  const [team, setTeam] = useState(preset.team);
-  const [volume, setVolume] = useState(preset.volume);
-  const [discount, setDiscount] = useState(true); // 70% cloud-cache discount
+  const [discount, setDiscount] = useState(true); // 70% cloud prompt-cache discount
 
   const model: CloudModel = CLOUD_MODELS[MODEL_INDICES[modelIdx]];
+
+  /* Preset highlight — value-matched, not click-matched: a preset only
+     carries `aria-pressed="true"` (and its pill) while the live
+     (team, volume) values actually equal that preset's. */
+  const activePreset =
+    PRESETS.find((p) => p.team === team && p.volume === volume) ?? null;
+
+  /* Offload/electricity follow the active preset when one matches, and
+     fall back to the 5-Eng Team calibration when the sliders are
+     dragged off-preset. */
+  const preset = activePreset ?? PRESETS[1];
 
   const inputs: CalcInputs = useMemo(
     () => ({
@@ -102,9 +122,28 @@ export default function SavingsInstrument() {
 
   const o = useMemo(() => computeEconomics(inputs), [inputs]);
 
-  const cloudPct = o.cloudOnlyUsd > 0 ? 100 : 100;
-  const hybridPct = o.cloudOnlyUsd > 0 ? (o.hybridTotalUsd / o.cloudOnlyUsd) * 100 : 0;
-  const isHaiku = model.name === 'Claude Haiku 5.5';
+  /* ── Dynamic bar scaling ────────────────────────────────────────────
+     Cloud-Only burn anchors the scale at 100%; the Castor Hybrid bar
+     is proportional to it; the 3rd bar is the hardware break-even
+     timeline for the team-size-matched rig, with a fill showing the
+     1st-year ROI multiple (capped at the scale ceiling). */
+  const hw = pickHwTier(team);
+  const paybackMonths =
+    o.monthlySavingsUsd > 0 ? hw.cost / o.monthlySavingsUsd : null;
+  const roiYears = o.monthlySavingsUsd > 0 ? (12 * o.monthlySavingsUsd) / hw.cost : 0;
+  const roiMultiple = Math.max(0, roiYears); // $ returned in year 1 per $1 of hardware
+  const roiFillPct =
+    paybackMonths === null ? 0 : Math.min(100, (12 / paybackMonths) * 50); // 50% scale = 1× ROI
+  const paybackDisplay =
+    paybackMonths === null
+      ? 'No net savings at these inputs'
+      : paybackMonths < 1
+        ? `${Math.max(1, Math.round(paybackMonths * 30.4))} days`
+        : paybackMonths < 2
+          ? `≈ ${(paybackMonths * 4.345).toFixed(1)} weeks`
+          : paybackMonths < 12
+            ? `≈ ${paybackMonths.toFixed(1)} months`
+            : `≈ ${(paybackMonths / 12).toFixed(1)} years`;
 
   // Publish live state for the DeployDeck's dynamic mailto CTAs.
   useEffect(() => {
@@ -119,26 +158,40 @@ export default function SavingsInstrument() {
     dispatchEconomicsUpdate(detail);
   }, [model.name, team, o.totalTokensM, o.annualSavingsUsd, o.hybridTotalUsd]);
 
-  const applyPreset = (p: (typeof PRESETS)[number]) => {
-    setPresetKey(p.key);
-    setTeam(p.team);
-    setVolume(p.volume);
-  };
-
   return (
     <section
       id="savings"
-      className="scroll-mt-20 bg-[#06080D] py-24 text-[#F5F7FA] lg:py-32"
+      className="dark-surface scroll-mt-20 bg-[#06080D] py-24 text-[#F5F7FA] lg:py-32"
     >
+      {/* Both #savings and #economics anchors resolve to this section. */}
+      <div id="economics" className="sr-only" aria-hidden="true" />
+
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        {/* ── Crisp header ──────────────────────────────────────────── */}
-        <header className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-[clamp(2rem,4vw,3.5rem)] font-bold leading-[1.02] tracking-[-0.035em] text-[#F5F7FA]">
-            Run the math on your team.
-          </h2>
-          <p className="mx-auto mt-4 text-base text-[#8C95A6] sm:text-lg">
-            Verified November 2026 official API rates.
-          </p>
+        {/* ── Folio bar ─────────────────────────────────────────────── */}
+        <div className="folio-bar text-[#8C95A6]">
+          <span className="folio-coord">
+            Economics &amp; Sizing // 02 — Team &amp; Hardware Calculator
+          </span>
+          <span className="folio-index">02 / 04</span>
+        </div>
+
+        {/* ── Left-aligned asymmetric header (no text-center) ───────── */}
+        <header className="asymmetric-spread mt-8">
+          <div className="min-w-0">
+            <h2 className="font-display text-[clamp(2rem,4vw,3.5rem)] font-bold leading-[1.02] tracking-[-0.035em] text-[#F5F7FA]">
+              Run the math
+              <br className="hidden sm:block" />
+              on your team.
+            </h2>
+          </div>
+          <div className="prose-measure min-w-0">
+            <p className="text-base leading-relaxed text-[#8C95A6] sm:text-lg">
+              Verified November 2026 official API rates, your team size, your
+              monthly volume — and the break-even point where a dedicated
+              local GPU rig starts paying for itself. Every bar moves live as
+              you drag.
+            </p>
+          </div>
         </header>
 
         {/* ── Pointer-spotlight glass card ──────────────────────────── */}
@@ -157,32 +210,42 @@ export default function SavingsInstrument() {
           <div className="relative grid gap-10 lg:grid-cols-[1fr_1.1fr]">
             {/* ── Left controls ─────────────────────────────────────── */}
             <div className="min-w-0 space-y-7">
-              {/* Workload presets */}
+              {/* Workload presets — value-matched highlight */}
               <div>
                 <p className="mb-2.5 font-mono text-[11px] uppercase tracking-[0.12em] text-[#5D6B80]">
                   Workload
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {PRESETS.map((p) => (
-                    <button
-                      key={p.key}
-                      onClick={() => applyPreset(p)}
-                      aria-pressed={p.key === presetKey}
-                      className="relative min-h-[44px] rounded-lg border border-white/12 bg-black/30 px-3.5 font-mono text-[12px] text-[#A3AEBF] transition-colors hover:text-[#F5F7FA]"
-                    >
-                      {p.key === presetKey && (
-                        <motion.span
-                          layoutId="calc-preset"
-                          transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-                          className="absolute inset-0 rounded-lg border border-[#3B82F6]/40 bg-[#131A26]"
-                        />
-                      )}
-                      <span className="relative z-10 flex flex-col items-start leading-tight">
-                        <span className={p.key === presetKey ? 'text-[#F5F7FA]' : ''}>{p.label}</span>
-                        <span className="text-[10px] text-[#5D6B80]">{p.sub}</span>
-                      </span>
-                    </button>
-                  ))}
+                  {PRESETS.map((p) => {
+                    const pressed = activePreset?.key === p.key;
+                    return (
+                      <button
+                        key={p.key}
+                        onClick={() => {
+                          setTeam(p.team);
+                          setVolume(p.volume);
+                        }}
+                        aria-pressed={pressed}
+                        className="relative min-h-[44px] rounded-lg border border-white/12 bg-black/30 px-3.5 font-mono text-[12px] text-[#A3AEBF] transition-colors hover:text-[#F5F7FA]"
+                      >
+                        {pressed && (
+                          <motion.span
+                            layoutId="calc-preset"
+                            transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                            className="absolute inset-0 rounded-lg border border-[#3B82F6]/40 bg-[#131A26]"
+                          />
+                        )}
+                        <span className="relative z-10 flex flex-col items-start leading-tight">
+                          <span className={pressed ? 'text-[#F5F7FA]' : ''}>
+                            {p.label}
+                          </span>
+                          <span className="text-[10px] text-[#5D6B80]">
+                            {p.sub}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -201,7 +264,7 @@ export default function SavingsInstrument() {
                         key={m.name}
                         onClick={() => setModelIdx(i)}
                         aria-pressed={active}
-                        title={`${m.name} · ${m.priceInPer1m} / ${m.priceOutPer1m} per 1M`}
+                        title={`${m.name} · $${m.priceInPer1m} / $${m.priceOutPer1m} per 1M`}
                         aria-label={`Select ${m.name} at ${m.priceInPer1m} in, ${m.priceOutPer1m} out per million tokens`}
                         className="relative min-h-[40px] w-full rounded-lg border border-white/12 bg-black/30 px-2.5 font-mono text-[11px] leading-tight text-[#A3AEBF] transition-colors hover:text-[#F5F7FA] sm:w-auto sm:px-3 sm:text-[12px]"
                       >
@@ -224,7 +287,7 @@ export default function SavingsInstrument() {
                 </div>
               </div>
 
-              {/* Sliders */}
+              {/* Sliders — dragging either immediately clears any preset */}
               <div className="space-y-5">
                 <Slider
                   label="Engineers"
@@ -246,24 +309,37 @@ export default function SavingsInstrument() {
                 />
               </div>
 
-              {/* Cache-rate toggle */}
+              {/* Cache-discount toggle — consistent label + ON/OFF badge */}
               <button
                 type="button"
                 onClick={() => setDiscount((d) => !d)}
                 role="switch"
                 aria-checked={discount}
-                className="flex min-h-[44px] w-full items-center justify-between rounded-lg border border-white/12 bg-black/30 px-4 py-2.5 font-mono text-[12px]"
+                className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-lg border border-white/12 bg-black/30 px-4 py-2.5 font-mono text-[12px]"
               >
-                <span className={discount ? 'text-[#F5F7FA]' : 'text-[#A3AEBF]'}>
-                  {discount ? '70% Cloud Cache Discount' : 'List Rate'}
-                </span>
                 <span
-                  className={`relative h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors ${discount ? 'bg-[#3B82F6]' : 'bg-white/15'}`}
-                  aria-hidden="true"
+                  className={`min-w-0 truncate ${discount ? 'text-[#F5F7FA]' : 'text-[#A3AEBF]'}`}
                 >
+                  70% Cloud Prompt-Cache Discount
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
                   <span
-                    className={`block h-5 w-5 rounded-full bg-white transition-transform ${discount ? 'translate-x-5' : 'translate-x-0'}`}
-                  />
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.08em] ${
+                      discount
+                        ? 'bg-[#3B82F6]/20 text-[#5B9BFF]'
+                        : 'bg-white/10 text-[#5D6B80]'
+                    }`}
+                  >
+                    {discount ? 'ON' : 'OFF'}
+                  </span>
+                  <span
+                    className={`relative h-6 w-11 shrink-0 rounded-full p-0.5 transition-colors ${discount ? 'bg-[#3B82F6]' : 'bg-white/15'}`}
+                    aria-hidden="true"
+                  >
+                    <span
+                      className={`block h-5 w-5 rounded-full bg-white transition-transform ${discount ? 'translate-x-5' : 'translate-x-0'}`}
+                    />
+                  </span>
                 </span>
               </button>
             </div>
@@ -281,46 +357,94 @@ export default function SavingsInstrument() {
                   className="mt-1 font-display text-[clamp(3rem,7vw,5rem)] font-bold leading-none tracking-[-0.04em] text-[#FB923C]"
                 />
 
-                {/* 3-stat strip — single-line labels on every viewport */}
+                {/* 3-stat strip */}
                 <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <Stat label="Cloud-Only / Mo" value={o.cloudOnlyUsd} color="text-[#5B9BFF]" />
-                  <Stat label="Hybrid / Mo" value={o.hybridTotalUsd} color="text-[#F5F7FA]" />
+                  <Stat label="Castor Hybrid / Mo" value={o.hybridTotalUsd} color="text-[#F5F7FA]" />
                   <Stat
-                    label="3090 Payback"
+                    label={`${hw.label} · ${fmtUsd(hw.cost)}`}
                     value={undefined}
-                    text={fmtPayback(o.paybackMonths)}
+                    text={paybackDisplay}
                     color="text-[#FB923C]"
                   />
                 </div>
 
-                {/* Cloud-only vs hybrid comparison bar */}
-                <div className="mt-8">
-                  <div className="mb-1.5 flex items-center justify-between font-mono text-[10.5px] text-[#5D6B80]">
-                    <span>Cloud-only</span>
-                    <span>Castor hybrid</span>
+                {/* ── Dynamic comparison bars ─────────────────────────
+                    All three bars rescale live from the same cloud-burn
+                    anchor whenever any input changes. */}
+                <div className="mt-8 space-y-3">
+                  {/* 1 · Cloud-only monthly burn (anchor, 100%) */}
+                  <div>
+                    <div className="mb-1.5 flex items-baseline justify-between gap-3 font-mono text-[10.5px] text-[#5D6B80]">
+                      <span className="shrink-0">Cloud-Only Monthly Burn</span>
+                      <SafeNumberFlow
+                        value={o.cloudOnlyUsd}
+                        prefix="$"
+                        format={{ maximumFractionDigits: 0 }}
+                        className="tabular text-[#8C95A6]"
+                      />
+                    </div>
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+                      <motion.div
+                        className="h-full bg-[#3B82F6]"
+                        initial={false}
+                        animate={{ width: '100%' }}
+                        transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+                      />
+                    </div>
                   </div>
-                  {/* Cloud-only bar (full) */}
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-                    <motion.div
-                      className="h-full bg-[#3B82F6]"
-                      initial={false}
-                      animate={{ width: `${cloudPct}%` }}
-                      transition={{ type: 'spring', stiffness: 120, damping: 20 }}
-                    />
+
+                  {/* 2 · Castor hybrid (proportional to the anchor) */}
+                  <div>
+                    <div className="mb-1.5 flex items-baseline justify-between gap-3 font-mono text-[10.5px] text-[#5D6B80]">
+                      <span className="shrink-0">Castor Hybrid (Cloud + $0 Local)</span>
+                      <SafeNumberFlow
+                        value={o.hybridTotalUsd}
+                        prefix="$"
+                        format={{ maximumFractionDigits: 0 }}
+                        className="tabular text-[#8C95A6]"
+                      />
+                    </div>
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+                      <motion.div
+                        className="h-full bg-[#F97316]"
+                        initial={false}
+                        animate={{
+                          width: `${o.cloudOnlyUsd > 0 ? Math.max((o.hybridTotalUsd / o.cloudOnlyUsd) * 100, 2) : 2}%`,
+                        }}
+                        transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+                      />
+                    </div>
                   </div>
-                  {/* Hybrid bar (proportional) */}
-                  <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-white/10">
-                    <motion.div
-                      className="h-full bg-[#F97316]"
-                      initial={false}
-                      animate={{ width: `${Math.max(hybridPct, 3)}%` }}
-                      transition={{ type: 'spring', stiffness: 120, damping: 20 }}
-                    />
+
+                  {/* 3 · Hardware break-even timeline + 1st-year ROI fill */}
+                  <div>
+                    <div className="mb-1.5 flex items-baseline justify-between gap-3 font-mono text-[10.5px] text-[#5D6B80]">
+                      <span className="min-w-0 truncate">
+                        {hw.label} (~{fmtUsd(hw.cost)}) Break-Even
+                      </span>
+                      <span className="shrink-0 tabular text-[#8C95A6]">
+                        {paybackDisplay} · Year-1 ROI {roiMultiple.toFixed(1)}×
+                      </span>
+                    </div>
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/10">
+                      <motion.div
+                        className="h-full bg-[#22C55E]"
+                        initial={false}
+                        animate={{ width: `${Math.max(roiFillPct, 2)}%` }}
+                        transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+                      />
+                    </div>
+                    <p className="mt-1 font-mono text-[10px] text-[#5D6B80]">
+                      {paybackMonths === null
+                        ? 'Cloud cost at these inputs is below the hardware investment.'
+                        : `Cloud savings pay back the ${hw.label} in ${paybackDisplay}; the fill shows the 1st-year return multiple.`}
+                    </p>
                   </div>
                 </div>
 
                 {/* Calm Haiku compliance callout */}
-                {isHaiku && (
+                {model.name === 'Claude Haiku 5.5' && (
                   <p className="mt-6 rounded-lg border border-white/10 bg-black/30 px-4 py-3 font-mono text-[11.5px] leading-relaxed text-[#8C95A6]">
                     At Haiku 5.5&apos;s budget rates the savings shrink — for
                     most agentic workloads, keep the frontier lead in the cloud
@@ -388,7 +512,7 @@ function Stat({
 }) {
   return (
     <div className="min-w-0 rounded-lg border border-white/10 bg-black/30 px-3.5 py-3">
-      <p className="whitespace-nowrap font-mono text-[10.5px] uppercase tracking-[0.06em] text-[#5D6B80]">
+      <p className="truncate font-mono text-[10.5px] uppercase tracking-[0.06em] text-[#5D6B80]">
         {label}
       </p>
       {value !== undefined ? (
@@ -399,7 +523,7 @@ function Stat({
           className={`mt-1 font-mono text-[19px] font-semibold ${color}`}
         />
       ) : (
-        <p className={`mt-1 font-mono text-[14px] font-semibold leading-snug ${color}`}>
+        <p className={`mt-1 font-mono text-[13px] font-semibold leading-snug ${color}`}>
           {text}
         </p>
       )}

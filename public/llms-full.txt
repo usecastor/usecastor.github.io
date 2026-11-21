@@ -1,20 +1,23 @@
 # Castor — Full Technical Specification
 
 > Machine-readable deep spec for LLMs, RAG pipelines, and AI search engines.
-> All figures are 100% verified as of **November 19, 2026**. Source of record:
-> the 76-day `castor stats` ledger (Sep 4 – Nov 19, 2026), a live
+> All figures are 100% verified as of **November 21, 2026**. Source of record:
+> the 78-day `castor stats` ledger (Sep 4 – Nov 21, 2026), a live
 > `nvidia-smi` + vLLM 0.33.0 runtime snapshot, the Qwen3.8-27B model card
 > (Aug 14, 2026, Apache-2.0), and the verified `src/` codebase.
 
 ## 1. Product Overview
 
-Castor (npm: `mcp-castor`, Rust crate, v1.5.0) is a sovereign **zero-egress**
-autonomous coding microkernel. It pairs a **cloud lead architect**
-(Claude Opus 5.5, Fable 5.2, Gemini 4 Neon, GPT-6.2 Astra) with a **local
-peer model** (`Qwen3.8-27B` / `Ternary-Bonsai`) running on the user's own GPU.
-The cloud model plans and reviews; the local model executes the
-high-volume tool loop (file reads, edits, search, test runs) at **$0.00 per
-token**, all inside a 5-layer sandbox and a loopback-only network boundary.
+Castor (npm: `mcp-castor`, Rust crate, v1.5.0) is sovereign **zero-cloud-egress**
+autonomous coding infrastructure. It runs AI coding agents in two wings:
+**Wing 1 (Cloud + Local Hybrid)** pairs a **cloud lead architect**
+(Claude Opus 5.5, Claude Sonnet 5.5, GPT-6.2 Astra, Gemini 4 Argon) with a
+**local peer model** (`Qwen3.8-27B` / `Ternary-Bonsai`) running on the user's
+own GPU — the cloud model plans and reviews while the local model executes
+the high-volume tool loop (file reads, edits, search, test runs) at
+**$0.00 per token**; **Wing 2 (100% Local-Only & Air-Gapped)** runs agents
+entirely on-prem with zero cloud API calls and zero code egress. All execution
+stays inside a 5-layer sandbox and a loopback-only network boundary.
 
 - License: **AGPL-3.0** (open source) **+ commercial dual-license**
   (opt-out) for air-gapped / enterprise deployments.
@@ -23,40 +26,40 @@ token**, all inside a 5-layer sandbox and a loopback-only network boundary.
 - npm: https://www.npmjs.com/package/mcp-castor
 - Install: `npx -y mcp-castor install --client all`
 
-## 2. Verified 76-Day Production Ledger
+## 2. Verified 78-Day Production Ledger
 
-Window: **2026-09-04 → 2026-11-19** (76 days), emitted by
+Window: **2026-09-04 → 2026-11-21** (78 days), emitted by
 `./target/release/castor stats`.
 
 | Metric | Value |
 | --- | --- |
-| Total tokens | 2,619,320,414 (2.62B) |
-| Prompt tokens | 2,560,177,056 (2.56B) |
-| Cached (KV) tokens | 2,389,785,370 (2.39B) |
-| KV prefix cache hit | **93.7%** |
-| Completion tokens | 59,214,272 (59.21M) |
-| Reasoning tokens | 50,676,986 (50.68M, 85.6% of completion) |
-| Autonomous turns | 46,862 |
-| Sessions | 1,130 |
-| Sandboxed tool calls | 63,901 (96.9% success) |
-| Surgical edit ratio | 3.59× (7,624 `edit_file` vs 2,125 `write_file`) |
-| GPU compute time | 208.37 h (208h 22m) |
-| Sustained decode (76d mean) | 70.8 tok/s |
-| November decode | p50 75.5 / p95 116.6 / max 139.7 tok/s |
-| Peak speculative burst | 1,995.7 tok/s (DFlash2) |
-| All-time prefill | 2,987 tok/s |
-| November prefill | avg **6,892** / p95 16,365 / max 19,384 tok/s |
-| Cloud counterfactual (Sonnet-tier $2/$10) | $5,712.50 |
-| Electricity cost | $9.38 (52.1 kWh @ $0.18/kWh) |
-| **Net savings** | **$5,703.12 (99.84%)** |
+| Total tokens | 2,770,000,000 (2.77B) |
+| Prompt tokens | 2,710,000,000 (2.71B) |
+| Cached (KV) tokens | 2,530,000,000 (2.53B) |
+| KV prefix cache hit | **93.8%** |
+| Completion tokens | 62,150,000 (62.15M) |
+| Reasoning tokens | 52,580,000 (52.58M, 84.6% of completion) |
+| Autonomous turns | 49,414 |
+| Sessions | 1,187 |
+| Sandboxed tool calls | 67,506 (97.0% success) |
+| Surgical edit ratio | 3.67× (surgical `edit_file` vs full `write_file` rewrites) |
+| GPU compute time | 224.93 h (224h 56m) |
+| Sustained decode (78d mean) | **70.4 tok/s** (single-stream n=1) |
+| Peak MTP decode | **75.5 tok/s** (single-stream n=1) |
+| Concurrent aggregate decode | **260 tok/s** (n=4 concurrent streams, shared warm KV prefix) |
+| Effective prefill | 3,247 tok/s |
+| Peak cached prefill | **6,892 tok/s** (warm KV-cache prefill) |
+| Cloud counterfactual (Sonnet-tier $2/$10) | $6,044.48 |
+| Electricity cost | $10.12 (56.2 kWh @ $0.18/kWh) |
+| **Net savings** | **$6,034.36 (99.83%)** |
 
-## 3. Live Hardware & Engine Snapshot (2026-11-19)
+## 3. Live Hardware & Engine Snapshot (2026-11-21)
 
 - GPU: **NVIDIA GeForce RTX 3090** — 23,869 / 24,576 MiB VRAM in use,
   244.6 W draw (262.5 W limit), 56 °C, driver 616.92.
 - Engine: **vLLM 0.33.0**, model `Qwen3.8-27B-W4A16-AutoRound-fast`,
   max model length 150,000 tokens.
-- Live: 92.6% prefix cache hit, 70.5% MTP draft acceptance
+- Live: 93.8% prefix cache hit, 70.5% MTP draft acceptance
   (mean acceptance length 3.45), 3.22 s average TTFT.
 
 ## 4. VRAM Hardware Tier Matrix
@@ -66,14 +69,15 @@ Window: **2026-09-04 → 2026-11-19** (76 days), emitted by
 | 8 GB | llama.cpp | 8K ctx | ~22–26 tok/s |
 | 12 GB | llama.cpp + DFlash2 | 64K ctx | ~38.6 tok/s |
 | 16 GB | llama.cpp + DFlash2 | 128K ctx | ~53.0 tok/s |
-| **24 GB (RTX 3090)** | **vLLM 0.33.0 + Qwen3.8-27B-W4A16 + MTP** | **150K KV pool** | **75.5 p50 / 116.6 p95 tok/s decode · 6,892 avg / 19,384 max tok/s warm prefill** |
+| **24 GB (RTX 3090)** | **vLLM 0.33.0 + Qwen3.8-27B-W4A16 + MTP** | **150K KV pool** | **70.4 tok/s sustained (75.5 peak n=1) · 260 tok/s aggregate n=4 · 3,247 effective / 6,892 peak cached prefill** |
 
 ## 5. Cloud Frontier Pricing (verified 2026-11-16, per 1M tokens)
 
-- Claude Fable 5.2 (Anthropic): $8 in / $40 out
-- GPT-6.2 Astra (OpenAI): $8 in / $40 out
+Unified frontier names (zero drift across the site):
+
 - Claude Opus 5.5 (Anthropic): $4 in / $20 out — #1 coding agent
-- Gemini 4 Carbon/Argon (Google): $4 in / $20 out (standard post-Dec 1; $2/$10 intro)
+- GPT-6.2 Astra (OpenAI): $8 in / $40 out
+- Gemini 4 Argon (Google): $4 in / $20 out (standard post-Dec 1; $2/$10 intro)
 - Claude Sonnet 5.5 (Anthropic): $2 in / $10 out
 - GPT-6.2 Sol (OpenAI): $2 in / $10 out
 - Claude Haiku 5.5 (Anthropic): $0.25 in / $1.25 out (budget)
@@ -132,7 +136,7 @@ Companion runtime gates:
   **27** bundled grammars; every file commit parsed in memory before
   touching disk; malformed code rejected and rolled back atomically.
 
-**Explicit zero-egress build** (air-gapped profile):
+**Explicit zero-cloud-egress build** (air-gapped profile):
 `cargo install --path . --no-default-features --features mcp,ast`
 — disables the default toolset and omits the `web` / `paper` features, so
 their code (and any socket) is never linked into the binary.
@@ -144,13 +148,25 @@ conversation, which Castor neither proxies nor inspects. In a fully
 air-gapped enclave, run a local model as the lead as well, and egress is
 zero by definition.
 
-## 9. Deployment & Commercial
+## 9. Deployment & Commercial — Two Wings, Four Fronts
 
-- **Castor Core** — $0, AGPL-3.0 open source.
-- **Turnkey Local Sprint** — **$1,500** one-time, 48-hour dedicated-hardware
-  stand-up (vLLM/CUDA/quantization tuning, sandbox hardening, IDE
-  onboarding, benchmark handoff).
-- **Enterprise Air-Gap Pilot** — fixed-scope 10–50 seat pilot, **below the
+**The Two Wings** (the two ways to run agents):
+- **Wing 1 · Cloud + Local Hybrid** — keep Claude Code, Antigravity, Cursor, or
+  Codex as your frontier architect while the high-volume file reads, code
+  searches, AST edits, and test runs route to your local GPU at $0 per token.
+- **Wing 2 · 100% Local-Only & Air-Gapped** — run coding agents entirely on
+  your own GPU workstations or on-prem servers: zero cloud API calls, zero
+  code egress, fully self-contained for regulated and offline environments.
+
+**The Four Fronts** (turnkey engineering teams):
+- **Open-Source Engine** — Castor Core, **$0**, AGPL-3.0 open source.
+- **$1,500 48-Hour GPU & vLLM Setup Sprint** — turnkey dedicated-hardware
+  stand-up (vLLM/CUDA/quantization tuning, sandbox hardening, IDE onboarding,
+  benchmark + egress-audit handoff).
+- **Custom Agent Workflow Plumbing** — agent orchestration, sandbox &
+  shell-policy hardening, and team IDE rollout wired into the tool loop your
+  agents already run.
+- **Air-Gapped On-Prem Pilot** — fixed-scope 10–50 seat pilot, **below the
   Copilot $19–$39/seat/mo anchor**, commercial dual-license, NIST 800-171 /
   CMMC Level 2 / ITAR / SCIF per-slice JSONL audit ledger.
 

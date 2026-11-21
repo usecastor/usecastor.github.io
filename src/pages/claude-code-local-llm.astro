@@ -26,23 +26,23 @@ const breadcrumb = {
 const faqItems: Array<{ q: string; a: string }> = [
   {
     q: 'Will my Claude Code sessions still feel like Claude Code?',
-    a: 'Yes. Your cloud lead architect (Claude Opus 5.5, Fable 5.2, Gemini 4 Neon, or GPT-6.2 Astra) stays exactly where it is. Castor only handles the tool-execution loop — file reads, edits, search, test runs — on your local model. The lead architect still writes the plan and reviews the work; you just stop paying frontier-model token rates for every byte of file I/O.',
+    a: 'Yes. Your cloud lead architect (Claude Opus 5.5, Claude Sonnet 5.5, Gemini 4 Argon, or GPT-6.2 Astra) stays exactly where it is. Castor only handles the tool-execution loop — file reads, edits, search, test runs — on your local model. The lead architect still writes the plan and reviews the work; you just stop paying frontier-model token rates for every byte of file I/O.',
   },
   {
-    q: 'How does the 93.7% KV prefix cache hit actually work?',
-    a: 'A coding agent re-sends the same system prompt, tool schemas, and recent file context every turn. vLLM caches that prefix in the GPU KV pool, so only the tail of each request is computed. Over 76 days, 2.39B of 2.56B prompt tokens (93.7%) were served from cache, which is why 24 GB of VRAM sustains a 150K-token context without thrashing.',
+    q: 'How does the 93.8% KV prefix cache hit actually work?',
+    a: 'A coding agent re-sends the same system prompt, tool schemas, and recent file context every turn. vLLM caches that prefix in the GPU KV pool, so only the tail of each request is computed. Over 78 days, 2.53B of 2.71B prompt tokens (93.8%) were served from cache, which is why 24 GB of VRAM sustains a 150K-token context without thrashing.',
   },
   {
     q: 'Which GPU do I need?',
-    a: 'Any 8 GB GPU works via the llama.cpp profile (~22–26 tok/s at 8K context). A 12 GB card reaches ~38.6 tok/s at 64K with DFlash2; 16 GB reaches ~53.0 tok/s at 128K. A 24 GB card (RTX 3090, 4090, or A5000) runs vLLM with Qwen3.8-27B-W4A16 and MTP speculative decode at 75.5 p50 / 116.6 p95 tok/s decode.',
+    a: 'Any 8 GB GPU works via the llama.cpp profile (~22–26 tok/s at 8K context). A 12 GB card reaches ~38.6 tok/s at 64K with DFlash2; 16 GB reaches ~53.0 tok/s at 128K. A 24 GB card (RTX 3090, 4090, or A5000) runs vLLM with Qwen3.8-27B-W4A16 and MTP speculative decode — 70.4 tok/s sustained single-stream decode (75.5 tok/s peak n=1), and 260 tok/s aggregate across n=4 concurrent streams sharing a warm KV prefix.',
   },
   {
     q: 'Is my code sent to any cloud provider by Castor?',
-    a: 'No. Castor is a zero-egress microkernel: the local model and its tool calls stay on loopback (127.0.0.1:18020–18022). Your codebase never leaves your machine through Castor. The only egress is the cloud lead architect conversation you already have — and you can compile that out entirely for air-gapped deployments.',
+    a: 'No. Castor runs the local model and its tool calls on loopback (127.0.0.1:18020–18022) inside a 5-layer sandbox — your codebase never leaves your machine through Castor. The only egress is the cloud lead architect conversation you already have — and you can compile that out entirely for air-gapped deployments.',
   },
   {
     q: 'How much do I actually save?',
-    a: 'In the verified 76-day ledger, the same workload would have cost $5,712.50 at Sonnet-tier cloud pricing ($2/M input, $10/M output). Local serving cost $9.38 in electricity — a 99.84% net saving. On frontier-model pricing ($8/$40), the counterfactual is over 4× higher, so the gap widens further.',
+    a: 'In the verified 78-day ledger, the same workload would have cost $6,044.48 at Sonnet-tier cloud pricing ($2/M input, $10/M output). Local serving cost $10.12 in electricity (56.2 kWh @ $0.18/kWh) — a 99.83% net saving of $6,034.36. On frontier-model pricing ($8/$40), the counterfactual is over 4× higher, so the gap widens further.',
   },
   {
     q: 'Does this work with Antigravity, Cursor, or any other MCP host?',
@@ -62,15 +62,15 @@ const faqPage = {
 const techArticle = {
   '@type': 'TechArticle',
   name: 'Cut Claude Code & Antigravity Token Costs by 90%+ with a Local GPU',
-  datePublished: '2026-11-19',
-  dateModified: '2026-11-19',
+  datePublished: '2026-11-21',
+  dateModified: '2026-11-21',
   author: { '@type': 'Organization', name: 'Castor Technologies' },
   publisher: { '@type': 'Organization', name: 'Castor Technologies' },
   mainEntityOfPage: `${root}claude-code-local-llm/`,
   keywords:
     'Claude Code, Antigravity, local LLM, Qwen3.8-27B, MCP, token costs, KV cache, vLLM, cost reduction, coding agent',
   abstract:
-    'Castor pairs your cloud lead architect with a local 27B model (Qwen3.8-27B or Ternary-Bonsai) over MCP, cutting Claude Code / Antigravity token spend by 90%+ — a verified 93.7% KV prefix reuse rate over 76 days.',
+    'Castor pairs your cloud lead architect with a local 27B model (Qwen3.8-27B or Ternary-Bonsai) over MCP, cutting Claude Code / Antigravity token spend by 90%+ — a verified 93.8% KV prefix reuse rate over 78 days.',
 };
 
 const jsonLd = [breadcrumb, techArticle, faqPage];
@@ -94,7 +94,7 @@ const commands: Array<{ comment: string; cmd: string }> = [
 
 <Layout
   title="Cut Claude Code & Antigravity Token Costs by 90%+ with a Local GPU | Castor MCP"
-  description="Keep Claude Opus 5.5 / Fable 5.2 / Gemini 4 Neon / GPT-6.2 Astra as your lead architect, and let Castor run the file-exploration loop on a local Qwen3.8-27B or Ternary-Bonsai GPU model. Verified 93.7% KV prefix reuse, 60-second MCP setup, and $0.00 per local token."
+  description="Keep Claude Opus 5.5 / Claude Sonnet 5.5 / Gemini 4 Argon / GPT-6.2 Astra as your lead architect, and let Castor run the file-exploration loop on a local Qwen3.8-27B or Ternary-Bonsai GPU model. Verified 93.8% KV prefix reuse over 78 days, 70.4 tok/s single-stream decode, 60-second MCP setup, and $0.00 per local token."
   canonicalPath="/claude-code-local-llm/"
   jsonLd={jsonLd}
 >
@@ -114,7 +114,7 @@ const commands: Array<{ comment: string; cmd: string }> = [
         </h1>
         <p class="mt-4 max-w-2xl font-sans text-[15px] leading-relaxed text-ink-secondary sm:text-base">
           The pattern: your <b>cloud lead architect</b> (Claude Opus 5.5,
-          Fable 5.2, Gemini 4 Neon, GPT-6.2 Astra) stays in the cloud for
+          Claude Sonnet 5.5, Gemini 4 Argon, GPT-6.2 Astra) stays in the cloud for
           planning and review — while a <b>local peer model</b>
           (<code class="am-code">Qwen3.8-27B</code> /
           <code class="am-code">Ternary-Bonsai</code>) executes the expensive
@@ -129,7 +129,7 @@ const commands: Array<{ comment: string; cmd: string }> = [
               CLOUD LEAD ARCHITECT · $/token
             </p>
             <p class="mt-2 font-display text-lg font-bold text-ink">
-              Claude Opus 5.5 · Fable 5.2 · Gemini 4 Neon · GPT-6.2 Astra
+              Claude Opus 5.5 · Claude Sonnet 5.5 · Gemini 4 Argon · GPT-6.2 Astra
             </p>
             <p class="mt-2 font-mono text-[12px] leading-relaxed text-ink-secondary">
               Writes the plan, reviews the diff, signs off. Only the
@@ -147,7 +147,7 @@ const commands: Array<{ comment: string; cmd: string }> = [
             <p class="mt-2 font-mono text-[12px] leading-relaxed text-ink-secondary">
               Executes the loop: read_file, edit_file, search_code, bash,
               test suites — on loopback, in a 5-layer sandbox, with
-              93.7% of prompt tokens served from a warm KV cache.
+              93.8% of prompt tokens served from a warm KV cache.
             </p>
           </div>
         </div>
@@ -158,16 +158,20 @@ const commands: Array<{ comment: string; cmd: string }> = [
     <section id="setup" class="scroll-mt-16 border-y border-hairline bg-recessed/40">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            01 · sixty-second setup
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">
+              Wing 01 · cloud + local hybrid · sixty-second setup
+            </span>
+            <span class="folio-index">01 / 03</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             Three Commands. Zero Codebase Changes.
           </h2>
           <p class="mt-3 max-w-2xl font-sans text-sm leading-relaxed text-ink-secondary">
-            Castor registers as a stdio MCP server with your existing client.
-            If you already run a local engine (vLLM, llama.cpp, SGLang,
-            Ollama, LM Studio), point the status probe at it and you're live.
+            Castor registers as a stdio MCP server with your existing client
+            (Claude Code, Antigravity, Cursor, or a custom host). If you
+            already run a local engine (vLLM, llama.cpp, SGLang, Ollama,
+            LM Studio), point the status probe at it and you're live.
           </p>
         </header>
 
@@ -216,15 +220,18 @@ const commands: Array<{ comment: string; cmd: string }> = [
       </div>
     </section>
 
-    <!-- ── The 93.7% math ─────────────────────────────────────────────── -->
+    <!-- ── The 93.8% math ─────────────────────────────────────────────── -->
     <section id="math" class="scroll-mt-16 border-b border-hairline">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            02 · the reuse math · verified over 76 days
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">
+              the reuse math · verified over 78 days
+            </span>
+            <span class="folio-index">02 / 03</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
-            Where the 93.7% Comes From
+            Where the 93.8% Comes From
           </h2>
         </header>
 
@@ -251,7 +258,7 @@ const commands: Array<{ comment: string; cmd: string }> = [
             </p>
             <p class="mt-3 font-mono text-[12px] leading-relaxed text-ink-secondary">
               vLLM's KV pool returns the shared prefix without recomputation.
-              Live scrape: {`92.6%`} prefix hit, {`70.5%`} MTP draft
+              Live scrape: {`93.8%`} prefix hit, {`70.5%`} MTP draft
               acceptance, 3.45-token mean acceptance length.
             </p>
           </div>
@@ -263,9 +270,11 @@ const commands: Array<{ comment: string; cmd: string }> = [
               net savings vs cloud counterfactual
             </p>
             <p class="mt-3 font-mono text-[12px] leading-relaxed text-ink-secondary">
-              ${L.electricityUsd} in electricity ({L.electricityKwh} kWh)
-              against a $5,712.50 Sonnet-tier API counterfactual for the
-              identical workload.
+              ${L.electricityUsd} in electricity ({L.electricityKwh} kWh @
+              ${L.electricityRateUsdPerKwh}/kWh) against a
+              ${L.cloudCounterfactualUsd.toLocaleString('en-US')} Sonnet-tier
+              API counterfactual for the identical workload —
+              ${L.netSavingsUsd.toLocaleString('en-US')} net saved.
             </p>
           </div>
         </div>
@@ -305,9 +314,12 @@ const commands: Array<{ comment: string; cmd: string }> = [
     <section id="faq" class="scroll-mt-16 border-b border-hairline bg-recessed/40">
       <div class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
         <header>
-          <p class="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-            03 · developer faq
-          </p>
+          <div class="folio-bar">
+            <span class="folio-coord">
+              Turnkey Team Setup &amp; Agent Plumbing · developer faq
+            </span>
+            <span class="folio-index">03 / 03</span>
+          </div>
           <h2 class="mt-2 font-display text-2xl font-bold tracking-tight text-ink md:text-3xl">
             Six Questions, Answered Straight
           </h2>
@@ -337,7 +349,7 @@ const commands: Array<{ comment: string; cmd: string }> = [
         </div>
 
         <div class="mt-8 flex flex-wrap gap-3">
-          <a href={`${base}/#economics`} class="tactile-btn tactile-btn--primary">
+          <a href={`${base}/#savings`} class="tactile-btn tactile-btn--primary">
             Run the Economics Calculator →
           </a>
           <a

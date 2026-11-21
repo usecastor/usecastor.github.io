@@ -1,129 +1,29 @@
 // @client
 /**
  * ACT 1 — HeroCinema.
- * Full-bleed #05070B dark-silicon stage: a live 60fps Paper Design WebGL2
- * GrainGradient mesh (client-mounted behind a WebGL2 capability guard, with a
- * pure-CSS cobalt+amber radial fallback for SSR / software contexts), a
- * liquid `layoutId` client installer, and the live BorderBeam +
- * ShikiMagicMovePrecompiled + NumberFlow theater.
+ * Full-bleed #05070B dark-silicon stage: a deterministic HTML5 canvas
+ * topology-survey background (low-alpha isometric grid + a soft
+ * amber/cobalt wavefront scan band, rAF paused off-screen, static under
+ * `prefers-reduced-motion`), a fixed-height single-view SSE velocity &
+ * concurrency streamer (n=4 parallel streams · 260 tok/s aggregate, or
+ * n=1 single stream · 70.4 tok/s — zero layout shift), and the liquid
+ * client installer with the page's single solid-amber primary button.
  *
  * Zero scroll hijacking, zero stuck opacity — the hero paints at full
- * visibility from the first frame.
+ * visibility from the first frame, and every initial value is
+ * deterministic (identical SSR and first-client render, no #418).
  */
 import { useEffect, useRef, useState } from 'react';
 import {
-  AnimatePresence,
   motion,
   useMotionTemplate,
   useMotionValue,
   useReducedMotion,
 } from 'motion/react';
-import {
-  GrainGradient,
-  type GrainGradientProps,
-} from '@paper-design/shaders-react';
-import { ShikiMagicMovePrecompiled } from 'shiki-magic-move/react';
-import type {
-  KeyedToken,
-  KeyedTokensInfo,
-} from 'shiki-magic-move/types';
 import { NumberFlowGroup } from '@number-flow/react';
 import SafeNumberFlow from './SafeNumberFlow';
 import { Check, Copy, Pause, Play } from 'lucide-react';
 import { HARDWARE_SNAPSHOT, LEDGER_76DAY } from '../../data/telemetry';
-
-export interface PrecompiledHeroStep {
-  id: string;
-  label: string;
-  lang: 'rust' | 'bash';
-  code: string;
-  tokens: KeyedTokensInfo;
-}
-
-interface HeroCinemaProps {
-  steps: PrecompiledHeroStep[];
-}
-
-/* ── Deterministic static code fallback (zero #418) ────────────────────
- * `ShikiMagicMovePrecompiled`'s underlying `ShikiMagicMoveRenderer`
- * attaches the theme's `rootStyle` as an inline `style` on its `<pre>`
- * inside a `useEffect` — so the SSR markup (no inline style) and the
- * first client render (inline style) diverge, and React 19's hydration
- * logs `#418`. On the initial (SSR + first client) pass we instead
- * render the exact same clean static `<pre>` the server emitted —
- * identical tokens, classes, and colors — and swap seamlessly into the
- * live precompiled theater after mount.
- */
-function normalizeCss(css?: string | React.CSSProperties): React.CSSProperties {
-  if (!css) return {};
-  if (typeof css === 'object') return css;
-  const out: Record<string, string> = {};
-  for (const pair of css.split(';')) {
-    const idx = pair.indexOf(':');
-    if (idx > -1) {
-      const key = pair.slice(0, idx).trim();
-      const val = pair.slice(idx + 1).trim();
-      if (key && val) out[key] = val;
-    }
-  }
-  return out as React.CSSProperties;
-}
-
-function StaticShikiPre({ tokens }: { tokens: KeyedTokensInfo }) {
-  return (
-    <pre className="shiki-magic-move-container">
-      <div>
-        {tokens.tokens.map((t: KeyedToken) =>
-          t.content === '\n' ? (
-            <br key={t.key} />
-          ) : (
-            <span
-              key={t.key}
-              style={{ ...normalizeCss(t.htmlStyle), color: t.color }}
-              className={['shiki-magic-move-item', t.htmlClass]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              {t.content}
-            </span>
-          ),
-        )}
-      </div>
-    </pre>
-  );
-}
-
-function HeroCodeStage({
-  steps,
-  step,
-  options,
-}: {
-  steps: PrecompiledHeroStep[];
-  step: number;
-  options: { duration: number; stagger: number; lineNumbers: boolean };
-}) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  const active = steps[Math.min(step, steps.length - 1)];
-
-  if (!mounted) {
-    // Deterministic SSR markup: clean static <pre> with the current
-    // frame's precompiled tokens — identical server and client.
-    return <StaticShikiPre tokens={active.tokens} />;
-  }
-
-  // Live morphing theater — mounted client-side only, so the declarative
-  // DOM surgery (and its inline rootStyle) never crosses hydration.
-  return (
-    <ShikiMagicMovePrecompiled
-      steps={steps.map((s) => s.tokens)}
-      step={step}
-      options={options}
-    />
-  );
-}
 
 /* ── Copy helper (real clipboard writes) ────────────────────────────── */
 
@@ -133,123 +33,190 @@ function writeClipboard(text: string): void {
   });
 }
 
-/* ── WebGL2 capability + software-renderer probe (client-only) ─────────
- * Guards against CPU-pegging software renderers (SwiftShader, llvmpipe,
- * Mesa, ANGLE "Microsoft Basic Render", Intel "Warp") so the live
- * GrainGradient shader never runs on devices without a real GPU.
- * Reduced-motion devices skip the live shader and keep the CSS mesh.
+/* ── TopologySurveyCanvas — deterministic wireframe wave survey ─────────
+ * Low-alpha isometric grid lines with a soft amber/cobalt wavefront scan
+ * band sweeping across (inspired by Meng To's `scroll-mesh-survey`).
+ *   · rAF pauses via IntersectionObserver when the hero leaves the view
+ *   · devicePixelRatio clamped to 1.6 (retina without over-rasterizing)
+ *   · `prefers-reduced-motion: reduce` → one static render, no loop
+ * Canvas only exists after mount (client-only), so there is zero SSR/
+ * hydration divergence — the element is painted empty by the CSS mesh.
  */
 
-const SOFTWARE_RENDERER_RE =
-  /swiftshader|llvmpipe|warp|software|microsoft basic render|mesa/i;
+const SURVEY_DPR_MAX = 1.6;
+const WAVE_PERIOD_S = 9;
+const GRID_STEP = 44;
 
-interface ShaderProbe {
-  enabled: boolean;
+interface SurveyState {
+  w: number;
+  h: number;
+  running: boolean;
+  reduced: boolean;
+  t0: number;
+  elapsed: number;
 }
 
-function probeShader(): ShaderProbe {
-  try {
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      return { enabled: false };
-    }
-    const c = document.createElement('canvas');
-    const gl = c.getContext('webgl2');
-    if (!gl) return { enabled: false };
-    const ext = gl.getExtension('WEBGL_debug_renderer_info');
-    if (ext) {
-      const renderer = String(
-        gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) ?? '',
-      );
-      if (SOFTWARE_RENDERER_RE.test(renderer)) {
-        // Software renderer detected — do not mount GrainGradient.
-        return { enabled: false };
+function renderSurvey(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  t: number,
+): void {
+  ctx.clearRect(0, 0, w, h);
+
+  /* Isometric diamond lattice: two diagonal families at ±26.57°
+     (3:4 slope) — low-alpha, gently modulated by the scan phase. */
+  const phase = (t * 0.06) % (Math.PI * 2);
+  ctx.lineWidth = 1;
+  for (const slope of [1, -1]) {
+    let i = 0;
+    const span = w + h;
+    for (let c = -span; c < span; c += GRID_STEP) {
+      i += 1;
+      const a = 0.028 + 0.017 * (0.5 + 0.5 * Math.sin(phase + i * 0.7));
+      ctx.strokeStyle = `rgba(148, 180, 220, ${a.toFixed(3)})`;
+      ctx.beginPath();
+      const k = (c * 3) / 4;
+      if (slope > 0) {
+        ctx.moveTo(0, Math.max(0, k));
+        ctx.lineTo(Math.min(w, w - k), Math.min(h, h - k));
+      } else {
+        ctx.moveTo(0, Math.min(h, h - k));
+        ctx.lineTo(Math.min(w, w - k), Math.max(0, k));
       }
+      ctx.stroke();
     }
-    return { enabled: true };
-  } catch {
-    return { enabled: false };
   }
+
+  /* Wavefront scan band: a soft vertical sweep, amber core fading into
+     cobalt shoulders, traveling left→right over WAVE_PERIOD_S. */
+  const x = ((t % WAVE_PERIOD_S) / WAVE_PERIOD_S) * (w + 520) - 260;
+  const g = ctx.createLinearGradient(x - 260, 0, x + 260, 0);
+  g.addColorStop(0, 'rgba(59,130,246,0)');
+  g.addColorStop(0.42, 'rgba(59,130,246,0.07)');
+  g.addColorStop(0.5, 'rgba(249,115,22,0.13)');
+  g.addColorStop(0.58, 'rgba(59,130,246,0.07)');
+  g.addColorStop(1, 'rgba(59,130,246,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
 }
 
-/* ── Live GPU shader layer (client-mounted, guarded) ──────────────────
- * Two independent gates:
- *   1. Software-renderer + reduced-motion probe above.
- *   2. IntersectionObserver: `speed` drops to 0 when the hero leaves the
- *      viewport so off-screen devices never burn battery / CPU.
- */
-
-function HeroShader() {
-  const [enabled, setEnabled] = useState(false);
-  const [inView, setInView] = useState(true);
+function TopologySurveyCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const p = probeShader();
-    setEnabled(p.enabled);
+    const canvas = canvasRef.current;
+    const wrap = wrapRef.current;
+    if (!canvas || !wrap) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const reduced = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)',
+    )?.matches ?? false;
+    const dpr = Math.min(window.devicePixelRatio || 1, SURVEY_DPR_MAX);
+
+    const s: SurveyState = {
+      w: 0,
+      h: 0,
+      running: !reduced,
+      reduced,
+      t0: performance.now(),
+      elapsed: 3.2, // deterministic mid-sweep opening frame
+    };
+
+    const size = () => {
+      const r = wrap.getBoundingClientRect();
+      s.w = Math.max(1, Math.round(r.width));
+      s.h = Math.max(1, Math.round(r.height));
+      canvas.width = Math.round(s.w * dpr);
+      canvas.height = Math.round(s.h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    size();
+
+    let raf = 0;
+    let io: IntersectionObserver | undefined;
+
+    const frame = (now: number) => {
+      if (!s.running) return;
+      s.elapsed = (now - s.t0) / 1000;
+      renderSurvey(ctx, s.w, s.h, s.elapsed);
+      raf = requestAnimationFrame(frame);
+    };
+
+    const staticRender = () => {
+      renderSurvey(ctx, s.w, s.h, s.elapsed);
+    };
+
+    if (reduced) {
+      // Reduced motion: a single deterministic static render.
+      staticRender();
+    } else if (typeof IntersectionObserver !== 'undefined') {
+      io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            const inView = e.isIntersecting;
+            if (inView && !s.running) {
+              s.running = true;
+              s.t0 = performance.now() - s.elapsed * 1000;
+              raf = requestAnimationFrame(frame);
+            } else if (!inView && s.running) {
+              s.running = false;
+              cancelAnimationFrame(raf);
+            }
+          }
+        },
+        { threshold: 0.01 },
+      );
+      io.observe(wrap);
+      raf = requestAnimationFrame(frame);
+    } else {
+      raf = requestAnimationFrame(frame);
+    }
+
+    const ro = new ResizeObserver(() => {
+      size();
+      if (reduced) staticRender();
+    });
+    ro.observe(wrap);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io?.disconnect();
+      ro.disconnect();
+    };
   }, []);
 
-  useEffect(() => {
-    if (!enabled) return;
-    const el = wrapRef.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) setInView(e.isIntersecting);
-      },
-      { threshold: 0.05 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [enabled]);
-
-  const params: Pick<
-    GrainGradientProps,
-    | 'speed'
-    | 'fit'
-    | 'scale'
-    | 'colorBack'
-    | 'colors'
-    | 'softness'
-    | 'intensity'
-    | 'noise'
-    | 'shape'
-  > = {
-    speed: inView ? 0.35 : 0,
-    fit: 'none',
-    scale: 1,
-    colorBack: '#05070B',
-    colors: ['#05070B', '#0F2557', '#1D4ED8', '#EA580C'],
-    softness: 0.8,
-    intensity: 0.35,
-    noise: 0.45,
-    shape: 'blob',
-  };
-
   return (
-    <div
-      ref={wrapRef}
-      className="absolute inset-0 opacity-[0.55]"
-      aria-hidden="true"
-    >
-      {enabled && <GrainGradient {...params} className="h-full w-full" />}
+    <div ref={wrapRef} className="absolute inset-0" aria-hidden="true">
+      <canvas ref={canvasRef} className="h-full w-full opacity-70" />
     </div>
   );
 }
 
-/* ── Liquid client installer ─────────────────────────────────────────── */
+/* ── Liquid client installer ───────────────────────────────────────────
+ * The client tab strip and the command bar share the exact same
+ * `w-full max-w-3xl mx-auto` container, so they are pixel-aligned at
+ * every breakpoint. The command text is `whitespace-nowrap
+ * overflow-x-auto` — switching to the 3rd tab (100% Local / Air-Gap)
+ * scrolls horizontally instead of wrapping to a second line, and the
+ * page height never shifts.
+ */
 
 const CLIENTS: Array<{ id: string; label: string; cmd: string }> = [
   { id: 'all', label: 'All Clients', cmd: 'npx -y mcp-castor install --client all' },
   { id: 'claude', label: 'Claude Code', cmd: 'npx -y mcp-castor install --client claude' },
   {
-    id: 'antigravity',
-    label: 'Antigravity',
-    cmd: 'npx -y mcp-castor install --client antigravity',
+    id: 'gemini',
+    label: 'Gemini CLI',
+    cmd: 'npx -y mcp-castor install --client gemini',
   },
   {
     id: 'airgap',
-    label: 'Air-Gap',
-    cmd: 'cargo install --path . --no-default-features --features mcp,ast',
+    label: '100% Local / Air-Gap',
+    cmd: 'cargo install --path . --no-default-features --features mcp,ast --offline',
   },
 ];
 
@@ -267,52 +234,46 @@ function InstallerBar() {
   };
 
   return (
-    <div className="mx-auto mt-8 max-w-xl min-w-0">
-      {/* Liquid spring-glide tabs — 2×2 grid on mobile, inline row on sm+ */}
-      <div
-        role="tablist"
-        aria-label="Install target"
-        className="mx-auto grid w-fit max-w-full grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/40 p-1 backdrop-blur-md sm:inline-flex"
-      >
-        {CLIENTS.map((c, i) => (
-          <button
-            key={c.id}
-            role="tab"
-            aria-selected={i === client}
-            onClick={() => setClient(i)}
-            className="relative min-h-[40px] rounded-md px-3 font-mono text-[11px] text-[#A3AEBF] transition-colors hover:text-[#F5F7FA] focus-visible:outline-2 focus-visible:outline-[#F97316] sm:text-[12px]"
-          >
-            {i === client && (
-              <motion.span
-                layoutId="hero-client-pill"
-                transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-                className="absolute inset-0 rounded-md border border-white/10 bg-[#131A26]"
-              />
-            )}
-            <span className="relative z-10 text-center sm:text-left">
-              {c.label}
-            </span>
-          </button>
-        ))}
+    <div className="mx-auto mt-8 w-full max-w-3xl">
+      {/* Same alignment container as the command bar below: w-full
+          max-w-3xl mx-auto — no left-aligned inline-flex bug. */}
+      <div className="w-full max-w-3xl mx-auto">
+        <div
+          role="tablist"
+          aria-label="Install target"
+          className="grid w-full grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/40 p-1 backdrop-blur-md sm:flex sm:w-fit sm:max-w-full sm:gap-1.5"
+        >
+          {CLIENTS.map((c, i) => (
+            <button
+              key={c.id}
+              role="tab"
+              aria-selected={i === client}
+              onClick={() => setClient(i)}
+              className="relative min-h-[40px] min-w-0 flex-1 rounded-md px-3 font-mono text-[11px] text-[#A3AEBF] transition-colors hover:text-[#F5F7FA] focus-visible:outline-2 focus-visible:outline-[#F97316] sm:flex-none sm:text-[12px]"
+            >
+              {i === client && (
+                <motion.span
+                  layoutId="hero-client-pill"
+                  transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                  className="absolute inset-0 rounded-md border border-white/10 bg-[#131A26]"
+                />
+              )}
+              <span className="relative z-10 block truncate text-center sm:text-left">
+                {c.label}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Glass-obsidian CLI bar — command wraps on narrow viewports */}
-      <div className="mt-3 flex min-w-0 items-center justify-between gap-3 rounded-lg border border-white/12 bg-black/60 px-4 py-3 backdrop-blur-md">
-        <code className="min-w-0 flex-1 break-words whitespace-normal rounded font-mono text-[12px] leading-relaxed text-[#D7DEE9] sm:text-[13.5px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* Glass-obsidian CLI bar — same w-full max-w-3xl container.
+          Command never wraps: nowrap + horizontal scroll inside. */}
+      <div className="w-full max-w-3xl mx-auto mt-3 flex min-w-0 items-center gap-3 rounded-lg border border-white/12 bg-black/60 px-4 py-3 backdrop-blur-md">
+        <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded font-mono text-[12px] leading-relaxed text-[#D7DEE9] sm:text-[13.5px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <span className="text-[#FB923C]">$ </span>
-          <AnimatePresence initial={false} mode="wait">
-            <motion.span
-              key={client}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.16 }}
-              className="inline"
-            >
-              {active.cmd}
-            </motion.span>
-          </AnimatePresence>
+          {active.cmd}
         </code>
+        {/* The single solid-amber primary button on the page. */}
         <button
           type="button"
           onClick={copy}
@@ -324,194 +285,498 @@ function InstallerBar() {
             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
             className="flex items-center gap-1.5"
           >
-            {copied ? <Check size={14} strokeWidth={2.5} /> : <Copy size={14} strokeWidth={2.5} />}
+            {copied ? (
+              <Check size={14} strokeWidth={2.5} />
+            ) : (
+              <Copy size={14} strokeWidth={2.5} />
+            )}
             {copied ? 'Copied' : 'Copy'}
           </motion.span>
         </button>
       </div>
+
+      {/* Clean secondary callout directly below the bar (not a button) */}
+      <p className="mt-4 text-center font-mono text-[12px] text-[#8C95A6] sm:text-left">
+        <a
+          href="#deploy"
+          className="text-[#A9C6FF] underline decoration-white/25 underline-offset-4 transition-colors hover:text-[#F5F7FA]"
+        >
+          Running a team? We set up your GPUs, vLLM, and agent plumbing in
+          48 hours →
+        </a>
+      </p>
     </div>
   );
 }
 
-/* ── Live telemetry per theater step (100% real Nov-19-2026 ledger) ─── */
+/* ── SSE Velocity & Concurrency Streamer ───────────────────────────────
+ * A calm, visceral, SINGLE-view streaming instrument. Strictly fixed
+ * height (h-[340px] inner stage) with zero layout shift: every dynamic
+ * value is pre-laid-out text or canvas pixels, and mode switches
+ * (n=4 ↔ n=1) only change what is drawn — never the box.
+ *
+ *   n=4 (default): 4 parallel lanes streaming simultaneously from one
+ *                  shared warm KV prefix — ~65–70 tok/s per lane =
+ *                  260 tok/s aggregate (the proven n=4 figure).
+ *   n=1:           one expanded lane, 4 sequential SSE lines, 70.4 tok/s.
+ *
+ * All readouts are deterministic and never start at 0.
+ */
 
-const STEP_TELEMETRY: Array<{
-  prefill: number;
-  decode: number;
-  kv: number;
-  usd: number;
-}> = [
-  { prefill: 0, decode: 0.0, kv: 0.0, usd: 0.0 },
+const LANE_TOKENS_PER_S = 65; // per-lane stream rate; 4 lanes ⇒ 260 aggregate
+const BATCH_TOKENS = 320; // tokens per slice batch before the completion pulse
+const PAUSE_AFTER_MS = 700;
+const N4_PROGRESS0 = 0.62; // deterministic staggered opening frame
+
+const SLICES: Array<{ id: string; name: string; note: string }> = [
   {
-    prefill: LEDGER_76DAY.novPrefillAvgTps,
-    decode: LEDGER_76DAY.novDecodeP50Tps,
-    kv: LEDGER_76DAY.cacheHitPct,
-    usd: 0,
+    id: 'slice/01',
+    name: 'auth-session-guard',
+    note: 'Scanning 18 files & patching token rotation',
   },
   {
-    prefill: LEDGER_76DAY.novPrefillP95Tps,
-    decode: LEDGER_76DAY.novDecodeP95Tps,
-    kv: LEDGER_76DAY.cacheHitPct,
-    usd: 0,
+    id: 'slice/02',
+    name: 'api-rate-limiter',
+    note: 'Updating concurrency semaphore & retry window',
   },
   {
-    prefill: LEDGER_76DAY.novPrefillMaxTps,
-    decode: LEDGER_76DAY.novDecodeMaxTps,
-    kv: LEDGER_76DAY.cacheHitPct,
-    usd: 0,
+    id: 'slice/03',
+    name: 'schema-migration',
+    note: 'Verifying SQL invariants across 12 tables',
+  },
+  {
+    id: 'slice/04',
+    name: 'sandbox-verifier',
+    note: 'Running 42 unit tests in zero-egress sandbox',
   },
 ];
 
-/* ── The BorderBeam theater ──────────────────────────────────────────── */
+const STREAMER_H = 340; // fixed inner stage height — no layout shift ever
 
-const STEP_BUTTONS = ['Dispatch', 'Warm KV', 'AST Edit', 'Exit 0'];
+interface StreamerLane {
+  progress: number; // tokens emitted this batch
+  doneMs: number; // >0 → completion pulse active (ms elapsed)
+  pausedMs: number; // hold before cycling to the next batch
+}
 
-function Theater({ steps }: { steps: PrecompiledHeroStep[] }) {
+function newLane(progress: number): StreamerLane {
+  return { progress, doneMs: 0, pausedMs: 0 };
+}
+
+function StreamerCanvas({
+  mode,
+  running,
+  lanesRef,
+}: {
+  mode: 1 | 4;
+  running: boolean;
+  lanesRef: React.RefObject<StreamerLane[]>;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const reduced = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)',
+    )?.matches ?? false;
+    const dpr = Math.min(window.devicePixelRatio || 1, SURVEY_DPR_MAX);
+
+    const state = { w: 0, h: 0, t: reduced ? 2.4 : 0 };
+
+    const size = () => {
+      const r = parent.getBoundingClientRect();
+      state.w = Math.max(1, Math.round(r.width));
+      state.h = Math.max(1, Math.round(r.height));
+      canvas.width = Math.round(state.w * dpr);
+      canvas.height = Math.round(state.h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    size();
+
+    /* ── draw helpers ─────────────────────────────────────── */
+
+    const MONO_S = '10px "IBM Plex Mono", ui-monospace, monospace';
+
+    const drawLane = (
+      lane: StreamerLane,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      slice: (typeof SLICES)[number],
+      subLine: number,
+    ) => {
+      const frac = Math.min(1, lane.progress / BATCH_TOKENS);
+      const head = Math.floor(lane.progress);
+      const pulse = lane.doneMs > 0 ? 1 - lane.doneMs / PAUSE_AFTER_MS : 0;
+
+      // Row background
+      ctx.fillStyle = 'rgba(11,15,23,0.55)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+
+      // Header line: live SSE data packet + lane id + token counter
+      const delta = `${slice.name}#${head}`;
+      ctx.font = MONO_S;
+      ctx.fillStyle = '#3B82F6';
+      ctx.fillText(`data: {"delta": "${delta}"}`, x + 10, y + 16);
+      ctx.fillStyle = lane.doneMs > 0 ? '#FB923C' : '#8C95A6';
+      ctx.fillText(
+        `${slice.id} · ${slice.name}${mode === 1 ? ` · line ${subLine + 1}/4` : ''}`,
+        x + 10,
+        y + 30,
+      );
+      const counter = `${head} tok`;
+      ctx.fillStyle = '#F5F7FA';
+      const cw = ctx.measureText(counter).width;
+      ctx.fillText(counter, x + w - cw - 10, y + 16);
+      if (pulse > 0) {
+        ctx.fillStyle = `rgba(249,115,22,${(0.55 * pulse).toFixed(3)})`;
+        ctx.fillText('✓ done', x + w - ctx.measureText('✓ done').width - 10, y + 30);
+      }
+
+      // Token block row: illuminated blocks stream left→right at proportional
+      // 60fps velocity, cobalt body, amber head, completion pulse wash.
+      const bx = x + 10;
+      const bw = w - 20;
+      const by = y + h - 18;
+      const BLOCK = 9;
+      const GAP = 3;
+      const total = Math.floor(bw / (BLOCK + GAP));
+      const lit = Math.min(total, Math.round(frac * total));
+      for (let i = 0; i < total; i++) {
+        const bxx = bx + i * (BLOCK + GAP);
+        if (i < lit) {
+          const isHead = i === lit - 1 && pulse === 0;
+          ctx.fillStyle = isHead
+            ? 'rgba(249,115,22,0.95)'
+            : pulse > 0
+              ? `rgba(249,115,22,${(0.35 + 0.4 * pulse).toFixed(3)})`
+              : 'rgba(59,130,246,0.55)';
+          ctx.fillRect(bxx, by, BLOCK, 8);
+        } else {
+          ctx.fillStyle = 'rgba(255,255,255,0.07)';
+          ctx.fillRect(bxx, by, BLOCK, 8);
+        }
+      }
+      // Lane note (clipped)
+      ctx.fillStyle = 'rgba(140,149,166,0.9)';
+      ctx.font = MONO_S;
+      const note = slice.note;
+      const maxW = bw - 60;
+      let n2 = note;
+      while (n2.length > 4 && ctx.measureText(n2).width > maxW) {
+        n2 = n2.slice(0, -2);
+      }
+      ctx.fillText(n2 + (n2 !== note ? '…' : ''), bx, by - 4);
+    };
+
+    const render = () => {
+      ctx.clearRect(0, 0, state.w, state.h);
+      const lanes = lanesRef.current;
+      const pad = 8;
+      const innerW = state.w - pad * 2;
+
+      if (mode === 4) {
+        const gap = 8;
+        const laneH = (state.h - pad * 2 - gap * 3) / 4;
+        for (let i = 0; i < 4; i++) {
+          drawLane(
+            lanes[i] ?? newLane(0),
+            pad,
+            pad + i * (laneH + gap),
+            innerW,
+            laneH,
+            SLICES[i],
+            i,
+          );
+        }
+      } else {
+        // n=1: one expanded stream — 4 sequential SSE lines in the same
+        // fixed-height viewport. Earlier lines render as completed (dim,
+        // amber-checked); the active line streams live.
+        const total = lanes[0].progress;
+        const activeLine = Math.min(3, Math.floor(total / BATCH_TOKENS));
+        const gap = 8;
+        const laneH = (state.h - pad * 2 - gap * 3) / 4;
+        for (let i = 0; i < 4; i++) {
+          const done = i < activeLine;
+          const cur = i === activeLine;
+          const lane = done
+            ? newLane(BATCH_TOKENS)
+            : cur
+              ? lanes[0]
+              : newLane(0);
+          drawLane(
+            lane,
+            pad,
+            pad + i * (laneH + gap),
+            innerW,
+            laneH,
+            SLICES[i],
+            i,
+          );
+          if (done) {
+            ctx.fillStyle = 'rgba(5,7,11,0.55)';
+            ctx.fillRect(pad, pad + i * (laneH + gap), innerW, laneH);
+            ctx.font = MONO_S;
+            ctx.fillStyle = 'rgba(249,115,22,0.8)';
+            ctx.fillText(
+              `✓ ${SLICES[i].id} · ${SLICES[i].name} — ${BATCH_TOKENS} tok delivered`,
+              pad + 10,
+              pad + i * (laneH + gap) + 18,
+            );
+          }
+        }
+      }
+    };
+
+    let raf = 0;
+    let last = performance.now();
+
+    const frame = (now: number) => {
+      if (!running) return;
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      const lanes = lanesRef.current;
+      for (let i = 0; i < lanes.length; i++) {
+        const lane = lanes[i];
+        if (mode === 1 && i > 0) continue; // only lane 0 advances in n=1
+        if (lane.doneMs > 0) {
+          lane.doneMs += dt * 1000;
+          if (lane.doneMs >= PAUSE_AFTER_MS) {
+            lane.doneMs = 0;
+            lane.pausedMs = 220 + Math.sin(i * 1.7) * 120; // staggered recycle
+          }
+        } else if (lane.pausedMs > 0) {
+          lane.pausedMs -= dt * 1000;
+          if (lane.pausedMs <= 0) lane.progress = 0; // start next slice batch
+        } else if (mode === 4) {
+          lane.progress += LANE_TOKENS_PER_S * dt;
+          if (lane.progress >= BATCH_TOKENS) {
+            lane.progress = BATCH_TOKENS; // hold the full bar through the pulse
+            lane.doneMs = 1;
+          }
+        } else {
+          // n=1: four sequential lines, then the batch recycles.
+          lane.progress += LANE_TOKENS_PER_S * dt;
+          if (lane.progress >= BATCH_TOKENS * 4) lane.progress = 0;
+        }
+      }
+      state.t += dt;
+      render();
+      raf = requestAnimationFrame(frame);
+    };
+
+    if (reduced) {
+      // Static deterministic frame (never 0 — lanes mid-stream).
+      render();
+    } else {
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+    }
+
+    const ro = new ResizeObserver(() => {
+      size();
+      if (reduced) render();
+    });
+    ro.observe(parent);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [mode, running, lanesRef]);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />;
+}
+
+function SSEStreamer() {
   const reduced = useReducedMotion();
-  // Instant-Impact default: open on the AST-gated edit frame (P95 prefill,
-  // real Rust `verify_token` code) so visitors see blazing RTX 3090 telemetry
-  // and real code the millisecond the page paints. Auto-play still cycles
-  // smoothly 2 → 3 → 0 → 1 → 2.
-  const [step, setStep] = useState(2);
-  const [playing, setPlaying] = useState(true);
-  const stepBtns = useRef<Array<HTMLButtonElement | null>>([]);
-  const active = STEP_TELEMETRY[step];
+  const [mode, setMode] = useState<1 | 4>(4);
+  const [paused, setPaused] = useState(false);
+  const [inView, setInView] = useState(true);
+  const stageRef = useRef<HTMLDivElement>(null);
 
-  // Auto-advance every 3.6s — disabled when paused or reduced motion.
+  // Deterministic initial state — identical on SSR and first client render:
+  // all lanes mid-stream (0.62 stagger), all readouts at their real values.
+  const lanesRef = useRef<StreamerLane[]>([
+    newLane(N4_PROGRESS0 * BATCH_TOKENS),
+    newLane((N4_PROGRESS0 + 0.08) * BATCH_TOKENS),
+    newLane((N4_PROGRESS0 + 0.16) * BATCH_TOKENS),
+    newLane((N4_PROGRESS0 + 0.24) * BATCH_TOKENS),
+  ]);
+
   useEffect(() => {
-    if (!playing || reduced) return;
-    const t = window.setInterval(
-      () => setStep((s) => (s + 1) % steps.length),
-      3600,
+    if (typeof IntersectionObserver === 'undefined') return;
+    const el = stageRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) setInView(e.isIntersecting);
+      },
+      { threshold: 0.05 },
     );
-    return () => window.clearInterval(t);
-  }, [playing, reduced, steps.length]);
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
-  // Keep the spring-glide pill inside the viewport when auto-advancing.
-  useEffect(() => {
-    const el = stepBtns.current[step];
-    el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [step]);
+  const running = inView && !paused && !(reduced ?? false);
 
-  const select = (i: number) => {
-    setStep(i);
-    setPlaying(false);
-  };
+  const aggregateTps =
+    mode === 4 ? LEDGER_76DAY.concurrentN4DecodeTps : LEDGER_76DAY.sustainedDecodeTps;
 
   return (
-    <div className="mx-auto mt-12 w-full min-w-0 max-w-5xl">
-      {/* 1px luminous rotating conic rim (Cobalt → Amber) around the
-          glass-obsidian hardware window. GPU-only transform rotation. */}
+    <div
+      ref={stageRef}
+      className="mx-auto mt-12 w-full min-w-0 max-w-5xl"
+    >
       <div
-        className="relative rounded-xl p-px"
+        className="rounded-xl p-px"
         style={{
           background:
             'conic-gradient(from 0deg, #3B82F6, #0A0D14 25%, #F97316 50%, #0A0D14 75%, #3B82F6)',
           animation: reduced ? undefined : 'border-beam 7s linear infinite',
         }}
         role="figure"
-        aria-label="Castor live execution theater"
+        aria-label="Castor SSE streaming instrument: n=4 concurrent agent streams from one warm KV prefix at 260 tokens per second aggregate"
       >
-        <div className="overflow-hidden rounded-[11px] bg-[#0A0D14]">
-          {/* ── Top HUD bar ─────────────────────────────────────────── */}
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-white/10 px-3 py-3 sm:px-5">
-            <div className="flex min-w-0 flex-1 items-center gap-1.5">
-              {/* Step tabs + play/pause on ONE row at 390px, no scrollbar */}
-              <div className="flex min-w-0 flex-1 items-center gap-1 rounded-lg border border-white/10 bg-black/40 p-1 sm:flex-none sm:gap-1.5">
-                {STEP_BUTTONS.map((label, i) => (
-                  <button
-                    key={label}
-                    ref={(el) => {
-                      stepBtns.current[i] = el;
-                    }}
-                    onClick={() => select(i)}
-                    aria-pressed={i === step}
-                    className="relative h-9 min-w-0 flex-1 rounded-md px-1.5 font-mono text-[10px] text-[#A3AEBF] transition-colors hover:text-[#F5F7FA] focus-visible:outline-2 focus-visible:outline-[#F97316] sm:h-[40px] sm:flex-none sm:px-3 sm:text-[11.5px]"
-                  >
-                    {i === step && (
-                      <motion.span
-                        layoutId="theater-step-pill"
-                        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-                        className="absolute inset-0 rounded-md border border-white/10 bg-[#131A26]"
-                      />
-                    )}
-                    <span className="relative z-10 block truncate">{label}</span>
-                  </button>
-                ))}
+        <div className="flex flex-col overflow-hidden rounded-[11px] bg-[#0A0D14]">
+          {/* ── Top instrument bar ─────────────────────────────────── */}
+          <div className="flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-5">
+            {/* Pinned shared prefix */}
+            <p className="font-mono text-[10.5px] tracking-[0.05em] text-[#8C95A6] sm:text-[11px]">
+              <span className="text-[#FB923C]">PINNED IN VRAM:</span>{' '}
+              148,400 TOKENS · 93.8% WARM KV HIT · 0ms RE-PREFILL
+            </p>
+
+            {/* 2-mode concurrency toggle + pause/resume */}
+            <div className="ml-auto flex items-center gap-1.5">
+              <div
+                role="group"
+                aria-label="Concurrency mode"
+                className="flex rounded-lg border border-white/10 bg-black/40 p-0.5"
+              >
+                <button
+                  type="button"
+                  aria-pressed={mode === 4}
+                  onClick={() => setMode(4)}
+                  className={`rounded-md px-2.5 py-2 font-mono text-[10.5px] transition-colors sm:px-3 ${
+                    mode === 4
+                      ? 'bg-[#131A26] text-[#F5F7FA]'
+                      : 'text-[#8C95A6] hover:text-[#F5F7FA]'
+                  }`}
+                >
+                  n=4 Parallel Streams · 260 tok/s aggregate
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={mode === 1}
+                  onClick={() => setMode(1)}
+                  className={`rounded-md px-2.5 py-2 font-mono text-[10.5px] transition-colors sm:px-3 ${
+                    mode === 1
+                      ? 'bg-[#131A26] text-[#F5F7FA]'
+                      : 'text-[#8C95A6] hover:text-[#F5F7FA]'
+                  }`}
+                >
+                  n=1 Single Stream · 70.4 tok/s
+                </button>
               </div>
               <button
                 type="button"
-                onClick={() => setPlaying((p) => !p)}
-                aria-label={playing ? 'Pause the loop' : 'Play the loop'}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-black/40 text-[#D7DEE9] transition-colors hover:border-white/25 sm:h-10 sm:w-10"
+                onClick={() => setPaused((p) => !p)}
+                aria-label={paused ? 'Resume the stream' : 'Pause the stream'}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-black/40 text-[#D7DEE9] transition-colors hover:border-white/25"
               >
-                {playing && !reduced ? (
-                  <Pause size={14} strokeWidth={2.25} />
-                ) : (
+                {paused ? (
                   <Play size={14} strokeWidth={2.25} />
+                ) : (
+                  <Pause size={14} strokeWidth={2.25} />
                 )}
               </button>
             </div>
 
-            {/* Live spinning telemetry strip */}
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1 font-mono">
-              <NumberFlowGroup>
-                <span className="min-w-0">
-                  <SafeNumberFlow
-                    value={active.prefill}
-                    format={{ useGrouping: true }}
-                    className="text-[13px] text-[#F5F7FA]"
-                  />
-                  <span className="ml-1 text-[10.5px] tracking-[0.08em] text-[#5D6B80]">
-                    PREFILL TOK/S
-                  </span>
-                </span>
-                <span className="min-w-0">
-                  <SafeNumberFlow
-                    value={active.decode}
-                    format={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
-                    className="text-[13px] text-[#F5F7FA]"
-                  />
-                  <span className="ml-1 text-[10.5px] tracking-[0.08em] text-[#5D6B80]">
-                    DECODE TOK/S
-                  </span>
-                </span>
-                <span className="min-w-0">
-                  <SafeNumberFlow
-                    value={active.kv}
-                    suffix="%"
-                    format={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
-                    className="text-[13px] text-[#F5F7FA]"
-                  />
-                  <span className="ml-1 text-[10.5px] tracking-[0.08em] text-[#5D6B80]">
-                    WARM KV
-                  </span>
-                </span>
-                <span className="min-w-0">
-                  <SafeNumberFlow
-                    value={active.usd}
-                    prefix="$"
-                    format={{ minimumFractionDigits: 3, maximumFractionDigits: 3 }}
-                    className="text-[13px] text-[#FB923C]"
-                  />
-                  <span className="ml-1 text-[10.5px] tracking-[0.08em] text-[#5D6B80]">
-                    CLOUD
-                  </span>
-                </span>
-              </NumberFlowGroup>
-            </div>
+            {/* Wing indicator badge */}
+            <span className="w-full rounded-full border border-[#3B82F6]/40 bg-[#3B82F6]/10 px-3 py-1 text-left font-mono text-[10px] uppercase tracking-[0.1em] text-[#7FA6FF] sm:ml-2 sm:w-auto sm:text-center">
+              {mode === 4
+                ? 'Wing 01: Hybrid Cloud+Local'
+                : 'Wing 02: 100% Local (0 B Egress)'}
+            </span>
           </div>
 
-          {/* ── Code morphing stage ─────────────────────────────────── */}
-          <div className="min-h-[250px] overflow-x-auto p-3.5 text-[10.5px] sm:min-h-[270px] sm:p-6 sm:text-[13px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <HeroCodeStage
-              steps={steps}
-              step={step}
-              options={{ duration: 600, stagger: 1.5, lineNumbers: true }}
-            />
+          {/* ── Center streaming viewport: strictly fixed height ───── */}
+          <div className="relative shrink-0" style={{ height: STREAMER_H }}>
+            <StreamerCanvas mode={mode} running={running} lanesRef={lanesRef} />
           </div>
 
-          {/* ── Bottom hardware footer strip ────────────────────────── */}
+          {/* ── Bottom telemetry & cloud-arbitrage comparison bar ────
+              Four rock-solid live readouts — deterministic values,
+              never starting at 0. */}
+          <div className="grid grid-cols-2 gap-px border-t border-white/10 bg-white/5 lg:grid-cols-4">
+            <NumberFlowGroup>
+              <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
+                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
+                  Cached Prefill
+                </p>
+                <SafeNumberFlow
+                  value={LEDGER_76DAY.peakCachedPrefillTps}
+                  format={{ useGrouping: true }}
+                  className="mt-0.5 font-mono text-[14px] font-semibold text-[#F5F7FA] sm:text-[15px]"
+                />
+                <span className="ml-1 font-mono text-[10.5px] text-[#5D6B80]">
+                  tok/s
+                </span>
+              </div>
+              <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
+                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
+                  Decode Throughput
+                </p>
+                <SafeNumberFlow
+                  value={aggregateTps}
+                  format={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
+                  className="mt-0.5 font-mono text-[14px] font-semibold text-[#F5F7FA] sm:text-[15px]"
+                />
+                <span className="ml-1 font-mono text-[10.5px] text-[#5D6B80]">
+                  tok/s ({mode === 4 ? 'n=4 aggregate' : 'n=1 stream'})
+                </span>
+              </div>
+              <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
+                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
+                  Warm KV Reuse
+                </p>
+                <SafeNumberFlow
+                  value={LEDGER_76DAY.cacheHitPct}
+                  suffix="%"
+                  format={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
+                  className="mt-0.5 font-mono text-[14px] font-semibold text-[#F5F7FA] sm:text-[15px]"
+                />
+                <span className="ml-1 font-mono text-[10.5px] text-[#5D6B80]">
+                  across 2.77B tokens
+                </span>
+              </div>
+              <div className="bg-[#0A0D14] px-4 py-3 sm:px-5">
+                <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#5D6B80]">
+                  Task Cost
+                </p>
+                <span className="mt-0.5 font-mono text-[14px] font-semibold text-[#FB923C] sm:text-[15px]">
+                  $0.0000 local
+                </span>
+                <span className="ml-2 font-mono text-[10.5px] text-[#5D6B80]">
+                  <s className="decoration-[#FB923C]/60">$1.42 cloud API</s>
+                </span>
+              </div>
+            </NumberFlowGroup>
+          </div>
+
+          {/* ── Hardware footer strip ──────────────────────────────── */}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-white/10 bg-black/30 px-4 py-3 sm:px-5">
             <p className="font-mono text-[11px] tracking-[0.03em] text-[#8C95A6]">
               {HARDWARE_SNAPSHOT.gpu.model.replace('NVIDIA GeForce ', '')} (
@@ -524,7 +789,7 @@ function Theater({ steps }: { steps: PrecompiledHeroStep[] }) {
               href="/benchmarks/qwen3-8-27b-rtx-3090/"
               className="whitespace-nowrap font-mono text-[11.5px] text-[#7FA6FF] underline decoration-white/20 underline-offset-4 transition-colors hover:text-[#A9C6FF]"
             >
-              Full 76-day benchmarks →
+              78-Day RTX 3090 Benchmarks →
             </a>
           </div>
         </div>
@@ -554,18 +819,17 @@ function useSpotlight() {
 
 /* ── Root ────────────────────────────────────────────────────────────── */
 
-export default function HeroCinema({ steps }: HeroCinemaProps) {
+export default function HeroCinema() {
   const spotlight = useSpotlight();
 
   return (
     <section
       id="hero"
-      className="relative -mt-14 min-h-screen w-full min-w-0 max-w-full overflow-x-clip bg-[#05070B] pb-20 pt-16 sm:pt-20"
+      className="dark-surface relative -mt-14 min-h-screen w-full min-w-0 max-w-full overflow-x-clip bg-[#05070B] pb-20 pt-16 sm:pt-20"
       onMouseMove={spotlight.onMouseMove}
     >
       {/* Static CSS mesh fallback — always painted (visible before the
-          WebGL mount, and in SSR / software contexts): a gorgeous dark
-          cobalt+amber radial mesh. */}
+          canvas hydrates, and in SSR): a dark cobalt+amber radial mesh. */}
       <div
         className="absolute inset-0"
         aria-hidden="true"
@@ -575,8 +839,8 @@ export default function HeroCinema({ steps }: HeroCinemaProps) {
         }}
       />
 
-      {/* Live 60fps WebGL2 GrainGradient (client-mounted, capability-guarded) */}
-      <HeroShader />
+      {/* Deterministic HTML5 canvas topology wave survey (client-mounted) */}
+      <TopologySurveyCanvas />
 
       {/* Pointer-tracked radial spotlight */}
       <motion.div
@@ -602,19 +866,23 @@ export default function HeroCinema({ steps }: HeroCinemaProps) {
           <h1
             className="font-display text-[clamp(2.6rem,6vw,5.25rem)] font-bold leading-[0.94] tracking-[-0.045em] text-[#F5F7FA]"
           >
-            Keep your frontier model.
-            <br />
-            <span className="text-[#FB923C]">Stop paying it</span> to read files.
+            {'Keep your frontier model. '}
+            <span className="block text-[#FB923C]">
+              Put your local GPU to work.
+            </span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-[#A3AEBF] sm:text-lg">
-            Pair Claude Opus 5.5, Gemini 4, or GPT-6.2 with Qwen3.8-27B on your
-            own GPU — 93.7% warm KV reuse at $0.00 per local token.
+            Two ways to run your coding agents. Pair Claude Code, Cursor, or
+            Gemini with your own GPU and cut your token bill by over 90% —
+            or run 100% local and private with zero cloud egress. And for
+            teams, we handle the turnkey GPU setup, vLLM tuning, and custom
+            agent plumbing.
           </p>
         </div>
 
         <InstallerBar />
 
-        <Theater steps={steps} />
+        <SSEStreamer />
       </div>
     </section>
   );

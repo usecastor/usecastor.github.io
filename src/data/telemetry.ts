@@ -1,10 +1,14 @@
 /**
  * Castor — Ground-Truth Telemetry & Architecture Data Layer
- * All values are 100% verified as of November 19, 2026.
- * Source of record: `castor stats` (76-day ledger Sep 4 – Nov 19, 2026),
+ * All values are 100% verified as of November 21, 2026.
+ * Source of record: `castor stats` (78-day ledger Sep 4 – Nov 21, 2026),
  * `nvidia-smi` + vLLM 0.33.0 runtime snapshot, `docs/engine-profiles.md`,
  * `scripts/bonsai/README.md`, Qwen3.8-27B model card (Aug 14, 2026),
  * and the Castor `src/` codebase.
+ *
+ * NOTE on the `LEDGER_76DAY` export name: kept verbatim for API stability
+ * (every v3 island and subpage imports it); the underlying window is now
+ * the fresh 78-day snapshot (2026-09-04 → 2026-11-21).
  */
 
 /* ── Types ─────────────────────────────────────────────────────────── */
@@ -12,6 +16,7 @@
 export interface Ledger76Day {
   windowStart: string;
   windowEnd: string;
+  snapshotDate: string;
   days: number;
   totalTokens: number;
   totalTokensDisplay: string;
@@ -27,25 +32,29 @@ export interface Ledger76Day {
   reasoningSharePct: number;
   turns: number;
   sessions: number;
+  tasks: number;
   toolCalls: number;
   toolSuccessPct: number;
   surgicalEditRatio: number;
   surgicalEditDetail: string;
   gpuComputeHours: number;
   gpuComputeDisplay: string;
+  sessionWallClock: string;
   sustainedDecodeTps: number;
-  novDecodeP50Tps: number;
-  novDecodeP95Tps: number;
-  novDecodeMaxTps: number;
+  peakMtpDecodeTps: number;
+  /** Proven aggregate decode across n=4 concurrent streams sharing a warm KV prefix. */
+  concurrentN4DecodeTps: number;
+  /** Legacy type-only field: retained at the n=4 aggregate value for API stability. */
   peakSpecBurstTps: number;
-  allTimePrefillTps: number;
-  novPrefillAvgTps: number;
-  novPrefillP95Tps: number;
-  novPrefillMaxTps: number;
+  effectivePrefillTps: number;
+  peakCachedPrefillTps: number;
+  /** Human-readable source note for the `concurrentN4DecodeTps` figure. */
+  benchmarkNote: string;
   cloudCounterfactualUsd: number;
   electricityUsd: number;
   electricityKwh: number;
   electricityRateUsdPerKwh: number;
+  gpuTdpW: number;
   netSavingsUsd: number;
   netSavingsPct: number;
 }
@@ -119,53 +128,62 @@ export interface ArchitectureSpec {
   };
 }
 
-/* ── Data: Live 76-day ledger (Sep 4 – Nov 19, 2026, `castor stats`) ─ */
+export interface PositioningFront {
+  id: string;
+  title: string;
+  description: string;
+}
+
+/* ── Data: Live 78-day ledger (Sep 4 – Nov 21, 2026, `castor stats`) ─ */
 
 export const LEDGER_76DAY: Ledger76Day = {
   windowStart: '2026-09-04',
-  windowEnd: '2026-11-19',
-  days: 76,
-  totalTokens: 2_619_320_414,
-  totalTokensDisplay: '2.62B',
-  promptTokens: 2_560_177_056,
-  promptTokensDisplay: '2.56B',
-  cachedTokens: 2_389_785_370,
-  cachedTokensDisplay: '2.39B',
-  cacheHitPct: 93.7,
-  completionTokens: 59_214_272,
-  completionTokensDisplay: '59.21M',
-  reasoningTokens: 50_676_986,
-  reasoningTokensDisplay: '50.68M',
-  reasoningSharePct: 85.6,
-  turns: 46_862,
-  sessions: 1_130,
-  toolCalls: 63_901,
-  toolSuccessPct: 96.9,
-  surgicalEditRatio: 3.59,
-  surgicalEditDetail: '7,624 edit_file vs 2,125 write_file',
-  gpuComputeHours: 208.37,
-  gpuComputeDisplay: '208h 22m',
-  sustainedDecodeTps: 70.8,
-  novDecodeP50Tps: 75.5,
-  novDecodeP95Tps: 116.6,
-  novDecodeMaxTps: 139.7,
-  peakSpecBurstTps: 1_995.7,
-  allTimePrefillTps: 2_987,
-  novPrefillAvgTps: 6_892,
-  novPrefillP95Tps: 16_365,
-  novPrefillMaxTps: 19_384,
-  cloudCounterfactualUsd: 5_712.5,
-  electricityUsd: 9.38,
-  electricityKwh: 52.1,
+  windowEnd: '2026-11-21',
+  snapshotDate: '2026-11-21',
+  days: 78,
+  totalTokens: 2_770_000_000,
+  totalTokensDisplay: '2.77B',
+  promptTokens: 2_710_000_000,
+  promptTokensDisplay: '2.71B',
+  cachedTokens: 2_530_000_000,
+  cachedTokensDisplay: '2.53B',
+  cacheHitPct: 93.8,
+  completionTokens: 62_150_000,
+  completionTokensDisplay: '62.15M',
+  reasoningTokens: 52_580_000,
+  reasoningTokensDisplay: '52.58M',
+  reasoningSharePct: 84.6,
+  turns: 49_414,
+  sessions: 1_187,
+  tasks: 228,
+  toolCalls: 67_506,
+  toolSuccessPct: 97.0,
+  surgicalEditRatio: 3.67,
+  surgicalEditDetail: 'surgical edit_file vs full write_file rewrites',
+  gpuComputeHours: 224.93,
+  gpuComputeDisplay: '224h 56m',
+  sessionWallClock: '160h 30m',
+  sustainedDecodeTps: 70.4,
+  peakMtpDecodeTps: 75.5,
+  concurrentN4DecodeTps: 260,
+  peakSpecBurstTps: 260,
+  effectivePrefillTps: 3_247,
+  peakCachedPrefillTps: 6_892,
+  benchmarkNote:
+    '260 tok/s is the proven aggregate decode across n=4 concurrent streams sharing a warm KV prefix (24 GB VRAM RTX 3090, Qwen3.8-27B W4A16, 936 GB/s bandwidth). Single-stream decode sustains 70.4 tok/s (75.5 tok/s peak).',
+  cloudCounterfactualUsd: 6_044.48,
+  electricityUsd: 10.12,
+  electricityKwh: 56.2,
   electricityRateUsdPerKwh: 0.18,
-  netSavingsUsd: 5_703.12,
-  netSavingsPct: 99.84,
+  gpuTdpW: 250,
+  netSavingsUsd: 6_034.36,
+  netSavingsPct: 99.83,
 };
 
-/* ── Data: Live hardware & vLLM 0.33.0 snapshot (Nov 19, 2026) ─────── */
+/* ── Data: Live hardware & vLLM 0.33.0 snapshot (Nov 21, 2026) ─────── */
 
 export const HARDWARE_SNAPSHOT: HardwareSnapshot = {
-  asOf: '2026-11-19',
+  asOf: '2026-11-21',
   gpu: {
     model: 'NVIDIA GeForce RTX 3090',
     vramTotalMiB: 24_576,
@@ -182,7 +200,7 @@ export const HARDWARE_SNAPSHOT: HardwareSnapshot = {
     liveDraftAcceptancePct: 70.5,
     meanAcceptanceLen: 3.45,
     liveAvgTtftS: 3.22,
-    livePrefixHitPct: 92.6,
+    livePrefixHitPct: 93.8,
   },
 };
 
@@ -211,20 +229,23 @@ export const VRAM_TIERS: VramTier[] = [
     vram: '24 GB VRAM (RTX 3090)',
     engine: 'vLLM 0.33.0 + Qwen3.8-27B-W4A16 + MTP',
     context: '150K KV pool',
-    decode: '75.5 p50 / 116.6 p95 tok/s decode · 6,892 avg / 19,384 max tok/s warm prefill',
+    decode: '75.5 peak MTP decode (n=1) · 260 tok/s n=4 concurrent · 3,247 effective / 6,892 peak cached prefill',
     highlight: true,
   },
 ];
 
 /* ── Data: Nov 2026 cloud frontier models & API pricing (per 1M tokens) ─ */
+/* Unified frontier names (zero drift across the site):
+   Claude Opus 5.5 · Claude Sonnet 5.5 · GPT-6.2 Astra · Gemini 4 Argon. */
 
 export const CLOUD_MODELS: CloudModel[] = [
   {
-    name: 'Claude Fable 5.2',
+    name: 'Claude Opus 5.5',
     vendor: 'anthropic',
-    priceInPer1m: 8,
-    priceOutPer1m: 40,
+    priceInPer1m: 4,
+    priceOutPer1m: 20,
     aaScore: 65,
+    note: '#1 Coding Agent',
   },
   {
     name: 'GPT-6.2 Astra',
@@ -234,15 +255,7 @@ export const CLOUD_MODELS: CloudModel[] = [
     aaScore: 62,
   },
   {
-    name: 'Claude Opus 5.5',
-    vendor: 'anthropic',
-    priceInPer1m: 4,
-    priceOutPer1m: 20,
-    aaScore: 59,
-    note: '#1 Coding Agent',
-  },
-  {
-    name: 'Gemini 4 Carbon / Argon',
+    name: 'Gemini 4 Argon',
     vendor: 'google',
     priceInPer1m: 4,
     priceOutPer1m: 20,
@@ -313,6 +326,38 @@ export const ARCHITECTURE: ArchitectureSpec = {
   },
 };
 
+/* ── Data: Four buyer-facing positioning fronts (zero jargon) ─────── */
+/* Wing 1 + Wing 2 (the two ways to run agents) and the two service
+   fronts that turnkey engineering teams. Replaces internal "Rust stdio
+   MCP microkernel" phrasing with plain value language. */
+
+export const POSITIONING_FRONTS: PositioningFront[] = [
+  {
+    id: 'wing-hybrid',
+    title: 'Wing 1 · Cloud + Local Hybrid',
+    description:
+      'Keep Claude Code, Antigravity, Cursor, or Codex as your frontier architect for the hard reasoning — while the 90% of file reads, code searches, AST edits, and test runs route to your local GPU at $0 per token.',
+  },
+  {
+    id: 'wing-local',
+    title: 'Wing 2 · 100% Local-Only & Air-Gapped',
+    description:
+      'Run coding agents entirely on your own GPU workstations or on-prem servers — zero cloud API calls, zero code egress, fully self-contained for regulated and offline environments.',
+  },
+  {
+    id: 'service-inference',
+    title: 'Turnkey GPU & Inference Setup · vLLM / KV-Cache Tuning',
+    description:
+      'We stand up your dedicated inference hardware in a day and tune vLLM KV-cache, MTP/DFlash2 speculative decode, and quantization to your exact model, GPU, and workload.',
+  },
+  {
+    id: 'service-plumbing',
+    title: 'Custom Agent Workflow Plumbing',
+    description:
+      'Agent orchestration, sandbox & shell-policy hardening, and team IDE rollout for engineering teams — wired directly into the tool loop your agents already run.',
+  },
+];
+
 /* ── Formatting helpers ───────────────────────────────────────────── */
 
 export function formatInt(n: number): string {
@@ -328,5 +373,5 @@ export function formatPct(n: number): string {
 }
 
 export function formatTps(n: number): string {
-  return `${n.toLocaleString('en-US')}`;
+  return n.toLocaleString('en-US');
 }

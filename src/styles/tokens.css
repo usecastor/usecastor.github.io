@@ -55,6 +55,15 @@
   /* ── Metric system: 1px hairline gap grid ──────────── */
   --gap-hairline: 1px;
 
+  /* ── Field-guide structural primitives ───────────────
+     Continuous vertical guide rails, specimen caption bars, the
+     asymmetric editorial spread, and machined card geometry. The rail
+     opacity + inset are the only knobs; color follows currentColor. */
+  --field-rail-opacity: 0.11;
+  --field-rail-inset: clamp(12px, 3vw, 48px);
+  --field-radius: 3px;
+  --field-measure: 42ch;
+
   color-scheme: light;
 }
 
