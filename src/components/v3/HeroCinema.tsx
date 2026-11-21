@@ -136,6 +136,16 @@ function TopologySurveyCanvas() {
     };
     size();
 
+    /* Defensive: if the first measurement landed on an un-laid-out
+       (zero-size) wrapper, re-size on the next paint so the canvas
+       never stays at the browser-default 300×150. */
+    if (s.w < 2 || s.h < 2) {
+      requestAnimationFrame(() => {
+        size();
+        if (s.reduced) staticRender();
+      });
+    }
+
     let raf = 0;
     let io: IntersectionObserver | undefined;
 
@@ -234,42 +244,42 @@ function InstallerBar() {
   };
 
   return (
-    <div className="mx-auto mt-8 w-full max-w-3xl">
-      {/* Same alignment container as the command bar below: w-full
-          max-w-3xl mx-auto — no left-aligned inline-flex bug. */}
-      <div className="w-full max-w-3xl mx-auto">
-        <div
-          role="tablist"
-          aria-label="Install target"
-          className="grid w-full grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/40 p-1 backdrop-blur-md sm:flex sm:w-fit sm:max-w-full sm:gap-1.5"
-        >
-          {CLIENTS.map((c, i) => (
-            <button
-              key={c.id}
-              role="tab"
-              aria-selected={i === client}
-              onClick={() => setClient(i)}
-              className="relative min-h-[40px] min-w-0 flex-1 rounded-md px-3 font-mono text-[11px] text-[#A3AEBF] transition-colors hover:text-[#F5F7FA] focus-visible:outline-2 focus-visible:outline-[#F97316] sm:flex-none sm:text-[12px]"
-            >
-              {i === client && (
-                <motion.span
-                  layoutId="hero-client-pill"
-                  transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-                  className="absolute inset-0 rounded-md border border-white/10 bg-[#131A26]"
-                />
-              )}
-              <span className="relative z-10 block truncate text-center sm:text-left">
-                {c.label}
-              </span>
-            </button>
-          ))}
-        </div>
+    <div className="mx-auto mt-6 w-full max-w-3xl">
+      {/* Tab strip spans the exact width of the command box below it, so
+          the bar's edges align 100% flush at every breakpoint (2-up on
+          mobile, 4-up from sm up). */}
+      <div
+        role="tablist"
+        aria-label="Install target"
+        className="grid w-full grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/40 p-1 backdrop-blur-md sm:grid-cols-4"
+      >
+        {CLIENTS.map((c, i) => (
+          <button
+            key={c.id}
+            role="tab"
+            aria-selected={i === client}
+            onClick={() => setClient(i)}
+            className="relative min-h-[40px] min-w-0 flex-1 rounded-md px-2 font-mono text-[11px] text-[#A3AEBF] transition-colors hover:text-[#F5F7FA] focus-visible:outline-2 focus-visible:outline-[#F97316] sm:px-3 sm:text-[12px]"
+          >
+            {i === client && (
+              <motion.span
+                layoutId="hero-client-pill"
+                transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                className="absolute inset-0 rounded-md border border-white/10 bg-[#131A26]"
+              />
+            )}
+            <span className="relative z-10 block truncate text-center sm:text-left">
+              {c.label}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Glass-obsidian CLI bar — same w-full max-w-3xl container.
-          Command never wraps: nowrap + horizontal scroll inside. */}
+          Command never wraps: nowrap + horizontal scroll inside; 11px on
+          mobile so `--client all` always fits without clipping. */}
       <div className="w-full max-w-3xl mx-auto mt-3 flex min-w-0 items-center gap-3 rounded-lg border border-white/12 bg-black/60 px-4 py-3 backdrop-blur-md">
-        <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded font-mono text-[12px] leading-relaxed text-[#D7DEE9] sm:text-[13.5px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded font-mono text-[11px] leading-relaxed text-[#D7DEE9] sm:text-[13.5px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <span className="text-[#FB923C]">$ </span>
           {active.cmd}
         </code>
@@ -654,8 +664,8 @@ function SSEStreamer() {
           <div className="flex min-h-[64px] flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 px-4 py-3 sm:px-5">
             {/* Pinned shared prefix */}
             <p className="font-mono text-[10.5px] tracking-[0.05em] text-[#8C95A6] sm:text-[11px]">
-              <span className="text-[#FB923C]">PINNED IN VRAM:</span>{' '}
-              148,400 TOKENS · 93.8% WARM KV HIT · 0ms RE-PREFILL
+              <span className="text-[#FB923C]">VRAM PREFIX:</span>{' '}
+              148.4K TOKENS · 93.8% WARM KV HIT
             </p>
 
             {/* 2-mode concurrency toggle + pause/resume */}
@@ -675,7 +685,7 @@ function SSEStreamer() {
                       : 'text-[#8C95A6] hover:text-[#F5F7FA]'
                   }`}
                 >
-                  n=4 Parallel Streams · 260 tok/s aggregate
+                  n=4 Parallel · 260 tok/s
                 </button>
                 <button
                   type="button"
@@ -687,7 +697,7 @@ function SSEStreamer() {
                       : 'text-[#8C95A6] hover:text-[#F5F7FA]'
                   }`}
                 >
-                  n=1 Single Stream · 70.4 tok/s
+                  n=1 Single · 70.4 tok/s
                 </button>
               </div>
               <button
@@ -770,7 +780,9 @@ function SSEStreamer() {
                   $0.0000 local
                 </span>
                 <span className="ml-2 font-mono text-[10.5px] text-[#5D6B80]">
-                  <s className="decoration-[#FB923C]/60">$1.42 cloud API</s>
+                  <span className="line-through whitespace-nowrap decoration-[#FB923C]/60">
+                    $1.42 cloud API
+                  </span>
                 </span>
               </div>
             </NumberFlowGroup>
@@ -825,7 +837,7 @@ export default function HeroCinema() {
   return (
     <section
       id="hero"
-      className="dark-surface relative -mt-14 min-h-screen w-full min-w-0 max-w-full overflow-x-clip bg-[#05070B] pb-20 pt-16 sm:pt-20"
+      className="dark-surface relative -mt-14 min-h-screen w-full min-w-0 max-w-full overflow-x-clip bg-[#05070B] pb-14 pt-10 sm:pt-14"
       onMouseMove={spotlight.onMouseMove}
     >
       {/* Static CSS mesh fallback — always painted (visible before the
@@ -862,16 +874,16 @@ export default function HeroCinema() {
 
       {/* ── Content ─────────────────────────────────────────────────── */}
       <div className="relative mx-auto max-w-5xl px-4 sm:px-6">
-        <div className="mx-auto max-w-4xl text-center">
+        <div className="mx-auto max-w-5xl text-center">
           <h1
-            className="font-display text-[clamp(2.6rem,6vw,5.25rem)] font-bold leading-[0.94] tracking-[-0.045em] text-[#F5F7FA]"
+            className="font-display text-[clamp(2.15rem,4.25vw,3.9rem)] font-bold leading-[1.02] tracking-[-0.038em] text-[#F5F7FA]"
           >
             {'Keep your frontier model. '}
             <span className="block text-[#FB923C]">
               Put your local GPU to work.
             </span>
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-base text-[#A3AEBF] sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-[15px] text-[#A3AEBF] sm:text-lg">
             Two ways to run your coding agents. Pair Claude Code, Cursor, or
             Gemini with your own GPU and cut your token bill by over 90% —
             or run 100% local and private with zero cloud egress. And for

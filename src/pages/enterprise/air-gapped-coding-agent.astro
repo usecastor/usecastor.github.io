@@ -418,7 +418,7 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
 
         <div class="mt-8 grid gap-px lg:grid-cols-2">
           {tiers.map((t) => (
-            <div class="bg-surface p-6">
+            <div class="flex flex-col justify-between bg-surface p-6">
               <div class="flex items-baseline justify-between">
                 <p class="font-display text-xl font-bold text-ink">{t.name}</p>
                 <p class="font-mono text-sm font-semibold text-local">{t.price}</p>
@@ -435,7 +435,7 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
               </ul>
               <a
                 href={mailtoFor(t.key)}
-                class="tactile-btn tactile-btn--primary mt-6"
+                class="tactile-btn tactile-btn--primary mt-auto pt-6"
               >
                 {t.ctaLabel}
               </a>

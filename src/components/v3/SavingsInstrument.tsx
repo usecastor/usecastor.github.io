@@ -61,11 +61,35 @@ const PRESETS: Array<{
   { key: 'airgap', label: '25-Seat Air-Gap', sub: '180M', team: 25, volume: 180, offload: 90, rate: 0.14 },
 ];
 
-/* ── Hardware tiers for the break-even timeline bar ─────────────────── */
+/* ── Hardware tiers for the break-even timeline bar ───────────────────
+   `label` is the full descriptive name; `rigShortName` is the crisp
+   short label used in the KPI card + break-even bar so nothing
+   truncates at 1440×900 or 390px. */
 const HW_TIERS = [
-  { key: 'solo', label: '1× RTX 3090', sub: 'solo dev', cost: 850, maxTeam: 4 },
-  { key: 'team', label: '1× RTX 5090 Workstation', sub: 'small team', cost: 3800, maxTeam: 14 },
-  { key: 'node', label: 'Multi-GPU Team vLLM Node', sub: '15+ engineers', cost: 16000, maxTeam: Infinity },
+  {
+    key: 'solo',
+    label: '1× RTX 3090',
+    rigShortName: 'RTX 3090 ($850)',
+    sub: 'solo dev',
+    cost: 850,
+    maxTeam: 4,
+  },
+  {
+    key: 'team',
+    label: '1× RTX 5090 Workstation',
+    rigShortName: 'RTX 5090 ($3.8K)',
+    sub: 'small team',
+    cost: 3800,
+    maxTeam: 14,
+  },
+  {
+    key: 'node',
+    label: 'Multi-GPU Team vLLM Node',
+    rigShortName: 'Team GPU Node ($16K)',
+    sub: '15+ engineers',
+    cost: 16000,
+    maxTeam: Infinity,
+  },
 ] as const;
 
 function pickHwTier(team: number): (typeof HW_TIERS)[number] {
@@ -179,7 +203,7 @@ export default function SavingsInstrument() {
         <header className="asymmetric-spread mt-8">
           <div className="min-w-0">
             <h2 className="font-display text-[clamp(2rem,4vw,3.5rem)] font-bold leading-[1.02] tracking-[-0.035em] text-[#F5F7FA]">
-              Run the math
+              Run the math{' '}
               <br className="hidden sm:block" />
               on your team.
             </h2>
@@ -318,7 +342,7 @@ export default function SavingsInstrument() {
                 className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-lg border border-white/12 bg-black/30 px-4 py-2.5 font-mono text-[12px]"
               >
                 <span
-                  className={`min-w-0 truncate ${discount ? 'text-[#F5F7FA]' : 'text-[#A3AEBF]'}`}
+                  className={`min-w-0 ${discount ? 'text-[#F5F7FA]' : 'text-[#A3AEBF]'}`}
                 >
                   70% Cloud Prompt-Cache Discount
                 </span>
@@ -362,7 +386,7 @@ export default function SavingsInstrument() {
                   <Stat label="Cloud-Only / Mo" value={o.cloudOnlyUsd} color="text-[#5B9BFF]" />
                   <Stat label="Castor Hybrid / Mo" value={o.hybridTotalUsd} color="text-[#F5F7FA]" />
                   <Stat
-                    label={`${hw.label} · ${fmtUsd(hw.cost)}`}
+                    label={`1× ${hw.rigShortName}`}
                     value={undefined}
                     text={paybackDisplay}
                     color="text-[#FB923C]"
@@ -419,11 +443,11 @@ export default function SavingsInstrument() {
 
                   {/* 3 · Hardware break-even timeline + 1st-year ROI fill */}
                   <div>
-                    <div className="mb-1.5 flex items-baseline justify-between gap-3 font-mono text-[10.5px] text-[#5D6B80]">
-                      <span className="min-w-0 truncate">
-                        {hw.label} (~{fmtUsd(hw.cost)}) Break-Even
+                    <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 font-mono text-[10.5px] text-[#5D6B80]">
+                      <span className="whitespace-nowrap">
+                        Hardware Payback · {hw.rigShortName}
                       </span>
-                      <span className="shrink-0 tabular text-[#8C95A6]">
+                      <span className="shrink-0 whitespace-nowrap tabular text-[#8C95A6]">
                         {paybackDisplay} · Year-1 ROI {roiMultiple.toFixed(1)}×
                       </span>
                     </div>
@@ -512,7 +536,7 @@ function Stat({
 }) {
   return (
     <div className="min-w-0 rounded-lg border border-white/10 bg-black/30 px-3.5 py-3">
-      <p className="truncate font-mono text-[10.5px] uppercase tracking-[0.06em] text-[#5D6B80]">
+      <p className="font-mono text-[10.5px] uppercase leading-snug tracking-[0.06em] text-[#5D6B80]">
         {label}
       </p>
       {value !== undefined ? (

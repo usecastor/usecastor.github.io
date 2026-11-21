@@ -196,8 +196,8 @@ function BriefBuilder({ econ }: { econ: EconomicsUpdateDetail | null }) {
         </p>
       </div>
 
-      <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
-        <div>
+      <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-start">
+        <div className="flex flex-col justify-start self-start">
           <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.12em] text-[#6C7484]">
             Front
           </p>
@@ -214,7 +214,7 @@ function BriefBuilder({ econ }: { econ: EconomicsUpdateDetail | null }) {
             ))}
           </div>
         </div>
-        <div>
+        <div className="flex flex-col justify-start self-start">
           <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.12em] text-[#6C7484]">
             Team size
           </p>
@@ -231,7 +231,7 @@ function BriefBuilder({ econ }: { econ: EconomicsUpdateDetail | null }) {
             ))}
           </div>
         </div>
-        <div>
+        <div className="flex flex-col justify-start self-start">
           <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.12em] text-[#6C7484]">
             GPU status
           </p>
@@ -372,7 +372,7 @@ export default function DeployDeck() {
         <header className="asymmetric-spread mt-8">
           <div className="min-w-0">
             <h2 className="font-display text-[clamp(2rem,4vw,3.5rem)] font-bold leading-[1.02] tracking-[-0.035em] text-[#101319]">
-              Run it yourself today.
+              Run it yourself today.{' '}
               <br className="hidden sm:block" />
               Or bring us in to wire your stack.
             </h2>
@@ -446,11 +446,8 @@ export default function DeployDeck() {
 
                 {/* Front 01: the exact install command in a monospace box */}
                 {f.cmd && (
-                  <div
-                    className="mt-4 overflow-x-auto rounded-md border border-white/10 bg-black/50 px-3 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                    style={{ whiteSpace: 'nowrap' }}
-                  >
-                    <code className="font-mono text-[11.5px] text-[#D7DEE9]">
+                  <div className="mt-4 overflow-hidden rounded-md border border-black/20 bg-[#0B0E14] px-3 py-2.5">
+                    <code className="block break-all font-mono text-[10.5px] leading-snug text-[#F5F7FA] sm:whitespace-normal sm:break-normal sm:text-[11.5px]">
                       <span className="text-[#FB923C]">$ </span>
                       {f.cmd}
                     </code>

@@ -293,7 +293,7 @@ function Conduit({
   label?: string;
 }) {
   return (
-    <div className="relative hidden h-10 items-center justify-center md:flex">
+    <div className="relative flex h-10 w-full items-center justify-center">
       <div
         className={`h-px w-full transition-colors duration-500 ${
           active
@@ -313,7 +313,7 @@ function Conduit({
         />
       )}
       {label && (
-        <span className="absolute rounded-full border border-black/10 bg-[#F7F6F2] px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-[#4A5568]">
+        <span className="absolute whitespace-nowrap rounded-full border border-black/10 bg-[#F7F6F2] px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-[0.1em] text-[#4A5568]">
           {label}
         </span>
       )}
@@ -364,7 +364,7 @@ function RoutingBlueprint() {
           </div>
 
           {/* Center conduit + hub */}
-          <div className="flex flex-col items-center justify-center gap-3 md:w-44">
+          <div className="flex w-full flex-col items-center justify-center gap-3 md:w-64">
             <Conduit
               active={mode.cloudConduit}
               label={
@@ -590,7 +590,7 @@ export default function DualEngineBeam() {
         <header className="asymmetric-spread mt-8">
           <div className="min-w-0">
             <h2 className="font-display text-[clamp(2rem,4vw,3.5rem)] font-bold leading-[1.02] tracking-[-0.035em] text-[#101319]">
-              Your frontier model
+              Your frontier model{' '}
               <br className="hidden sm:block" />
               shouldn&apos;t grep.
             </h2>
