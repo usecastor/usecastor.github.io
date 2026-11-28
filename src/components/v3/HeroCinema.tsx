@@ -48,7 +48,7 @@ const CLIENTS: Array<{ id: string; label: string; cmd: string }> = [
   {
     id: 'source',
     label: 'Source (Cargo)',
-    cmd: 'cargo install --path . --no-default-features --features mcp,ast',
+    cmd: 'cargo build --release --no-default-features --features mcp,ast',
   },
 ];
 
@@ -716,7 +716,7 @@ function SSEStreamer({ base }: { base: string }) {
             {/* Session KV cache readout */}
             <p className="min-w-0 shrink truncate font-mono text-[10.5px] tracking-[0.05em] text-[#8C95A6] sm:text-[11px]">
               <span className="text-[#FB923C]">SESSION KV CACHE</span>{' '}
-              · 93.8% HIT · RTX 3090 (W4A16)
+              · {LEDGER_76DAY.cacheHitPct.toFixed(1)}% HIT · RTX 3090 (W4A16)
             </p>
 
             {/* 2-mode concurrency toggle + pause / stream control.
@@ -853,7 +853,7 @@ function SSEStreamer({ base }: { base: string }) {
                   className="mt-0.5 font-mono text-[14px] font-semibold tabular-nums text-[#F5F7FA] sm:text-[15px]"
                 />
                 <span className="ml-1 font-mono text-[10.5px] text-[#5D6B80]">
-                  across 2.77B tokens
+                  across {LEDGER_76DAY.totalTokensDisplay} tokens
                 </span>
               </div>
               <div className="min-w-0 bg-[#0A0D14] px-4 py-3 sm:px-5">
@@ -864,7 +864,7 @@ function SSEStreamer({ base }: { base: string }) {
                   $0.0000
                 </span>
                 <span className="ml-2 font-mono text-[10.5px] text-[#5D6B80]">
-                  ~$0.001 power / token-loop
+                  ${LEDGER_76DAY.electricityUsd.toFixed(2)} total power (78-day)
                 </span>
               </div>
             </NumberFlowGroup>

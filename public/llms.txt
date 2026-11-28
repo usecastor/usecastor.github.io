@@ -66,5 +66,6 @@ AGPL-3.0 open source + commercial dual-license (opt-out) for air-gapped / enterp
 - Cut Claude Code & Antigravity Token Costs with a Local GPU: https://usecastor.github.io/claude-code-local-llm/
 - Air-Gapped Local Coding Agent (CMMC Level 2 / ITAR / SCIF): https://usecastor.github.io/enterprise/air-gapped-coding-agent/
 - GitHub: https://github.com/usecastor/castor
+- Releases (native `win32-x64` zip alongside Linux `tar.gz`): https://github.com/usecastor/castor/releases
 - npm (mcp-castor): https://www.npmjs.com/package/mcp-castor
 - Full technical specification: https://usecastor.github.io/llms-full.txt

@@ -117,6 +117,7 @@ export interface ArchitectureSpec {
   };
   links: {
     github: string;
+    releases: string;
     npm: string;
     email: string;
   };
@@ -297,6 +298,7 @@ export const ARCHITECTURE: ArchitectureSpec = {
   },
   links: {
     github: 'https://github.com/usecastor/castor',
+    releases: 'https://github.com/usecastor/castor/releases',
     npm: 'https://www.npmjs.com/package/mcp-castor',
     email: 'mailto:m.abdullah.ali.2523@gmail.com',
   },

@@ -32,7 +32,7 @@ const faqItems: Array<{ q: string; a: string }> = [
   },
   {
     q: 'How do I prove the egress boundary to a CISO or auditor?',
-    a: 'Build with the `--no-default-features --features mcp,ast` profile, capture `nmap` / `ss -ltnp` output showing only loopback listeners on 127.0.0.1:18020–18022, and present the per-slice JSONL audit ledger that records every tool call and its verdict. The 137-vector test table at `src/tools/sandbox/tests.rs:527` (123 blocked / 14 allowed) is reproducible from the open-source test suite.',
+    a: 'Build with the `--no-default-features --features mcp,ast` profile, capture `nmap` / `ss -ltnp` (Linux) or `netstat -ano` (Windows) output showing only loopback listeners on 127.0.0.1:18020–18022, and present the per-slice JSONL audit ledger that records every tool call and its verdict. The 137-vector test table at `src/tools/sandbox/tests.rs:527` (123 blocked / 14 allowed) is reproducible from the open-source test suite.',
   },
   {
     q: 'Is the AST syntax gate a hard requirement or a toggle?',
@@ -396,7 +396,8 @@ function mailtoFor(key: 'sprint' | 'enterprise'): string {
               <li class="border-l-2 border-l-local pl-3">
                 <b>Strict enforcement.</b> Pair the build with a host-OS
                 default-deny outbound firewall or air-gapped enclave networking:
-                `ss -ltnp` / `nmap` on the host then show only loopback listeners.
+                `ss -ltnp` / `nmap` (Linux) or `netstat -ano` (Windows) on the
+                host then show only loopback listeners.
               </li>
             </ul>
           </div>

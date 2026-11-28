@@ -8,7 +8,7 @@
 
 ## 1. Product Overview
 
-Castor (npm: `mcp-castor`, Rust crate, v1.5.0) is **zero-cloud-egress**
+Castor (npm: `mcp-castor`, Rust crate, v1.6.0) is **zero-cloud-egress**
 autonomous coding infrastructure. It runs AI coding agents in two wings:
 **Wing 1 (Cloud + Local Hybrid)** pairs a **cloud lead architect**
 (Claude Opus 5.5, Claude Sonnet 5.5, GPT-6.2 Astra, Gemini 4 Argon) with a
@@ -23,6 +23,7 @@ stays inside a 5-layer sandbox and a loopback-only network boundary.
   (opt-out) for air-gapped / enterprise deployments.
 - Platforms: Windows, Linux, macOS.
 - Repo: https://github.com/usecastor/castor
+- Releases (native `win32-x64` zip alongside Linux `tar.gz`): https://github.com/usecastor/castor/releases
 - npm: https://www.npmjs.com/package/mcp-castor
 - Install: `npx -y mcp-castor install --client claude` (Claude Code),
   `--client antigravity` (Antigravity), or `--client all` (both).
@@ -156,7 +157,7 @@ MCP is stdio-only, and the engine, status, and SSE-proxy ports
 (127.0.0.1:18020–18022) bind to loopback. For strict zero-egress
 enforcement, pair this build with a host-OS default-deny outbound firewall
 or air-gapped enclave networking and disable external web tool config.
-Verify with `ss -ltnp` / `nmap`.
+Verify with `ss -ltnp` / `nmap` (Linux) or `netstat -ano` (Windows).
 
 ## 9. Deployment & Commercial — Two Wings, Four Fronts
 

@@ -12,7 +12,7 @@ Astro 5 (static output) + React 19 (interactive islands) + TypeScript (strict) +
 | Styling | `tailwindcss@4` via `@tailwindcss/vite`; design tokens in `src/styles/tokens.css`, theme bindings + anti-slop utilities (`.spec-grid`, `.tactile-btn`, `.tabular`, `.folio-bar`, `.machined-card`) in `src/styles/global.css` |
 | Type | `tsconfig.json` extends `astro/tsconfigs/strict` with `jsx: 'react-jsx'`; type gate via `pnpm run check` (`astro check` / `@astrojs/check`) |
 | Fonts | `@fontsource-variable/archivo` (display), `@fontsource/ibm-plex-sans`, `@fontsource/ibm-plex-mono` — Latin subsets only, self-hosted, no CDN |
-| Deploy | `vercel.json` (Vercel, `framework: astro`, clean URLs, security headers, immutable `/_astro/*`) + `.github/workflows/deploy.yml` (GitHub Pages, `ASTRO_BASE=/Castor`) |
+| Deploy | `vercel.json` (Vercel, `framework: astro`, clean URLs, security headers, immutable `/_astro/*`) + `.github/workflows/deploy.yml` (GitHub Pages, `ASTRO_BASE=/`) |
 
 ## Routes
 
@@ -23,7 +23,7 @@ Astro 5 (static output) + React 19 (interactive islands) + TypeScript (strict) +
 | `/claude-code-local-llm/` | `src/pages/claude-code-local-llm.astro` | Wing 1 (Cloud + Local Hybrid): 60-second MCP setup, 93.8% KV reuse math, cloud pricing, FAQ |
 | `/enterprise/air-gapped-coding-agent/` | `src/pages/enterprise/air-gapped-coding-agent.astro` | Wing 2 (100% Local-Only & Air-Gapped): 5-layer sandbox, runtime gates, zero-egress build, engagement tiers, CISO FAQ |
 
-All root-relative asset paths derive from `import.meta.env.BASE_URL`, so the same build serves `/` on Vercel and `/Castor/` on GitHub Pages.
+All root-relative asset paths derive from `import.meta.env.BASE_URL`, so the same build serves `/` on Vercel and `/` (root domain `usecastor.github.io`) on GitHub Pages.
 
 ## Layout
 
@@ -34,7 +34,7 @@ website/
 ├── vercel.json               # framework: astro, clean URLs, security headers, immutable /_astro/*
 ├── pnpm-workspace.yaml       # pnpm build-script allowlist (esbuild, sharp)
 ├── .github/workflows/
-│   └── deploy.yml            # GitHub Pages build (ASTRO_BASE=/Castor)
+│   └── deploy.yml            # GitHub Pages build (ASTRO_BASE=/)
 ├── public/
 │   ├── assets/               # logo.svg, favicon.svg, og-card.png, pure1_dioscuri_dyad.svg
 │   ├── llms.txt              # buyer-facing summary for LLM/RAG ingestion
